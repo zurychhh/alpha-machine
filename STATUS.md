@@ -21,7 +21,7 @@
 ### Milestone 1: Project Foundation ✅
 **Completed:** 2025-12-20
 **Duration:** 1 session (~30 min)
-**Git Tag:** `milestone-1` (pending commit)
+**Git Tag:** `milestone-1` (commit: 6f0999b)
 
 **Key Deliverables:**
 - ✅ Complete project structure created (backend/, frontend/, scripts/)
@@ -391,13 +391,13 @@ None - BUILD_SPEC.md is clear for Milestone 2.
 
 **For Milestone 1 completion:**
 
-- [x] All code committed and pushed (pending)
+- [x] All code committed (commit: 6f0999b)
 - [x] STATUS.md updated with resume point
 - [x] DECISIONS.md updated with choices made
 - [x] BLOCKERS.md lists any issues (none)
 - [x] Tests all passing
 - [x] .env.example updated
-- [ ] Git tagged at current state (pending)
+- [x] Git tagged at current state (tag: milestone-1)
 
 **New developer: Read CLAUDE.md first, then this file, then MILESTONES.md**
 
