@@ -1,19 +1,19 @@
 # ALPHA MACHINE - PROJECT STATUS
 ## Live Development State
 
-**Last Updated:** 2026-01-03 21:45 CET
+**Last Updated:** 2026-01-03 23:00 CET
 **Updated By:** Claude Code
-**Session:** 6 - Comprehensive Testing & Documentation
+**Session:** 7 - Milestone 4: Signal Generation
 
 ---
 
 ## 🎯 CURRENT PHASE
 
-**Milestone:** 3 - AI Agents (BUILD_SPEC.md Compliant)
+**Milestone:** 4 - Signal Generation
 **Progress:** 100% complete
 **Status:** 🟢 Complete
-**Started:** 2025-12-21
-**Completed:** 2025-12-21
+**Started:** 2026-01-03
+**Completed:** 2026-01-03
 
 ### BUILD_SPEC.md 4-Agent System - COMPLETE
 - ✅ ContrarianAgent: GPT-4o (OpenAI) - Deep value / contrarian analysis
@@ -175,8 +175,44 @@ tests/
 
 ---
 
-### Milestone 4: Signal Generation ❌
-**Status:** Not Started
+### Milestone 4: Signal Generation ✅ (Complete)
+**Completed:** 2026-01-03
+**Status:** Complete
+**Progress:** 100%
+
+**Key Deliverables:**
+- ✅ `app/services/signal_service.py` - Signal CRUD operations with risk parameters
+- ✅ Risk calculations: stop_loss (10% below entry), target_price (25% above)
+- ✅ Position sizing: 10% max portfolio, scaled by confidence
+- ✅ Signal persistence to PostgreSQL (signals + agent_analysis tables)
+- ✅ GET /api/v1/signals - List signals with filtering
+- ✅ GET /api/v1/signals/{id} - Signal details with agent analyses
+- ✅ GET /api/v1/signals/stats - Signal statistics
+- ✅ PATCH /api/v1/signals/{id}/status - Update signal status
+- ✅ POST /api/v1/signals/generate-all - Batch watchlist generation
+- ✅ `app/tasks/celery_app.py` - Celery configuration
+- ✅ `app/tasks/data_tasks.py` - Scheduled data fetching
+- ✅ `app/tasks/signal_tasks.py` - Scheduled signal generation
+- ✅ 59 new tests (447 total, 100% pass rate)
+
+**Celery Schedule:**
+```
+- fetch-market-data-5min: Every 5 minutes during market hours
+- fetch-sentiment-30min: Every 30 minutes
+- generate-signals-daily: 9:00 AM EST (before market open)
+- generate-signals-midday: 12:00 PM EST
+- analyze-signals-eod: 4:30 PM EST (after market close)
+```
+
+**API Endpoints Added:**
+```
+GET  /api/v1/signals                    - List signals (with filters)
+GET  /api/v1/signals/stats              - Signal statistics
+GET  /api/v1/signals/agents             - List agents
+GET  /api/v1/signals/{id}               - Signal details
+PATCH /api/v1/signals/{id}/status       - Update status
+POST /api/v1/signals/generate-all       - Batch generation
+```
 
 ---
 
@@ -200,23 +236,27 @@ tests/
 - ✅ Milestone 1: Project Foundation - 100% complete
 - ✅ Milestone 2: Data Pipeline - 100% complete
 - ✅ Milestone 3: AI Agents - 100% complete
-- ✅ Comprehensive Testing Phase - 100% complete (388 tests, 100% pass)
-- ✅ TESTING_PLAYBOOK.md integrated into CLAUDE.md
-- ✅ All documentation updated
+- ✅ Comprehensive Testing Phase - 100% complete
+- ✅ **Milestone 4: Signal Generation** - 100% complete
+  - Signal persistence to PostgreSQL
+  - Risk parameters (stop_loss, target_price)
+  - Celery scheduled tasks configured
+  - 59 new tests added (447 total)
 
 **Current System Status:**
 | Component | Status | Details |
 |-----------|--------|---------|
 | 4 AI Agents | ✅ Working | GPT-4o, Claude, Gemini, Rule-based |
-| Test Suite | ✅ 388 tests | 100% pass rate, 79% coverage |
+| Signal Service | ✅ Working | CRUD, risk params, DB persistence |
+| Celery Tasks | ✅ Configured | Data + Signal scheduled tasks |
+| Test Suite | ✅ 447 tests | 100% pass rate |
 | API Keys | ✅ Configured | OpenAI, Anthropic, Polygon, Finnhub |
 | Database | ✅ Running | PostgreSQL + Redis (Docker) |
-| API Server | ✅ Working | 15 endpoints functional |
+| API Server | ✅ Working | 21 endpoints functional |
 
 **Next Milestone Options:**
-1. **Milestone 4: Signal Generation** - Celery tasks, DB storage, history endpoint
-2. **Milestone 5: Dashboard** - Next.js frontend, real-time signals
-3. **Milestone 6: Deployment** - Railway + Vercel production
+1. **Milestone 5: Dashboard** - Next.js frontend, real-time signals
+2. **Milestone 6: Deployment** - Railway + Vercel production
 
 **To Resume Development:**
 ```bash
@@ -235,13 +275,20 @@ cd backend && uvicorn app.main:app --reload --port 8001
 # 5. Test endpoints
 curl http://localhost:8001/api/v1/health
 curl http://localhost:8001/api/v1/signals/agents
+curl http://localhost:8001/api/v1/signals
 
 # 6. Run full test suite
 python -m pytest tests/ --cov=app -q
+
+# 7. Start Celery worker (optional)
+celery -A app.tasks.celery_app worker --loglevel=info
+
+# 8. Start Celery beat scheduler (optional)
+celery -A app.tasks.celery_app beat --loglevel=info
 ```
 
 **Context:**
-Milestones 1-3 complete + comprehensive testing done. System has 388 passing tests with 79% coverage. Ready to proceed with Milestone 4 (Signal Generation) or Milestone 5 (Dashboard).
+Milestones 1-4 complete. System has 447 passing tests. Signal generation with database persistence and Celery scheduling is fully operational. Ready to proceed with Milestone 5 (Dashboard) or Milestone 6 (Deployment).
 
 ---
 
@@ -575,6 +622,30 @@ None - all clear ✅
 ---
 
 ## 🔄 SESSION LOG
+
+### Session 7 - 2026-01-03 (Milestone 4: Signal Generation)
+**Duration:** ~45 minutes
+**Focus:** Implement signal persistence, risk parameters, and Celery scheduling
+
+**Completed:**
+- ✅ Created `app/services/signal_service.py` - Signal CRUD with risk calculations
+- ✅ Updated `app/api/endpoints/signals.py` - Added 6 new endpoints
+- ✅ Created `app/tasks/celery_app.py` - Celery configuration with beat schedule
+- ✅ Created `app/tasks/data_tasks.py` - Market data and sentiment fetching
+- ✅ Created `app/tasks/signal_tasks.py` - Signal generation and analysis
+- ✅ Created `tests/unit/test_signal_service.py` - 36 tests
+- ✅ Created `tests/unit/test_celery_tasks.py` - 23 tests
+- ✅ 447 tests passing (100% pass rate)
+
+**New Features:**
+- Signal persistence to PostgreSQL (signals + agent_analysis tables)
+- Risk parameters: stop_loss (10% below), target_price (25% above)
+- Position sizing: 10% max portfolio, scaled by confidence
+- Signal history and statistics endpoints
+- Batch signal generation for watchlist
+- Celery scheduled tasks for automated data/signal generation
+
+---
 
 ### Session 6 - 2026-01-03 (Comprehensive Testing & Documentation)
 **Duration:** ~60 minutes
