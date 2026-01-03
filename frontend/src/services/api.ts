@@ -50,7 +50,10 @@ class ApiClient {
       })
     }
     const query = searchParams.toString()
-    return this.request<Signal[]>(`/signals${query ? `?${query}` : ''}`)
+    const response = await this.request<{ count: number; signals: Signal[] }>(
+      `/signals${query ? `?${query}` : ''}`
+    )
+    return response.signals
   }
 
   async getSignal(signalId: number): Promise<Signal> {
