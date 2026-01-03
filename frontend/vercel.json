@@ -5,7 +5,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://alpha-machine-backend.railway.app/api/:path*"
+      "destination": "https://backend-production-a7f4.up.railway.app/api/:path*"
     }
   ]
 }
