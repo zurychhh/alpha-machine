@@ -14,11 +14,7 @@ async def health_check(db: Session = Depends(get_db)):
     Health check endpoint.
     Verifies database and Redis connectivity.
     """
-    health_status = {
-        "status": "healthy",
-        "database": "unknown",
-        "redis": "unknown"
-    }
+    health_status = {"status": "healthy", "database": "unknown", "redis": "unknown"}
 
     # Check database
     try:

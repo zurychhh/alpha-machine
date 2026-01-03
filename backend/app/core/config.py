@@ -40,8 +40,16 @@ class Settings(BaseSettings):
 
     # Watchlist
     WATCHLIST_TICKERS: List[str] = [
-        "NVDA", "MSFT", "GOOGL", "AMD", "TSM", "AVGO",  # Tier 1
-        "PLTR", "AI", "CRWD", "SNOW",  # Tier 2
+        "NVDA",
+        "MSFT",
+        "GOOGL",
+        "AMD",
+        "TSM",
+        "AVGO",  # Tier 1
+        "PLTR",
+        "AI",
+        "CRWD",
+        "SNOW",  # Tier 2
     ]
 
     # Scheduling

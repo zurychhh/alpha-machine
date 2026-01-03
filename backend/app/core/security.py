@@ -2,6 +2,7 @@
 Security utilities for Alpha Machine.
 Optional API authentication can be added here.
 """
+
 from typing import Optional
 from fastapi import HTTPException, Security
 from fastapi.security import APIKeyHeader

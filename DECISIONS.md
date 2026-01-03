@@ -28,9 +28,14 @@
 2. [Data Source: Polygon.io as primary](#decision-2-polygonio-primary)
 3. [AI Framework: OpenAI + Anthropic + Google](#decision-3-multi-vendor-ai)
 4. [psycopg3 over psycopg2](#decision-4-psycopg3-over-psycopg2)
-5. [Flexible package versions for Python 3.13](#decision-5-flexible-versions)
-6. [Defer TensorFlow to Milestone 3](#decision-6-defer-tensorflow)
-7. [Example Decision Template](#decision-template)
+5. [Flexible package versions](#decision-5-flexible-package-versions)
+6. [Keyword-based sentiment analysis](#decision-6-keyword-based-sentiment)
+7. [Reddit/News sentiment weighting](#decision-7-sentiment-weighting)
+8. [Circuit Breaker for API resilience](#decision-8-circuit-breaker)
+9. [Rule-based agent as baseline](#decision-9-rule-based-baseline)
+10. [Weighted consensus algorithm](#decision-10-weighted-consensus)
+11. [Reddit integration postponed](#decision-11-reddit-postponed)
+12. [Example Decision Template](#decision-template)
 
 ---
 
@@ -230,177 +235,385 @@ Could use all from one vendor (e.g., 4x GPT-4) or mix vendors.
 
 ### Context
 
-BUILD_SPEC.md specified `psycopg2-binary==2.9.9` but this package failed to build on Python 3.13 due to C extension compatibility issues.
+BUILD_SPEC.md specified `psycopg2-binary==2.9.9`, but this failed to install on Python 3.13 due to C API changes.
 
 ### Options Considered
 
-#### Option A: psycopg2-binary (Original spec)
-**Pros:**
-- As specified in BUILD_SPEC.md
-- Widely used, well-documented
+#### Option A: Downgrade Python to 3.11/3.12
+- Would work with psycopg2
+- Cons: Older Python, less future-proof
 
-**Cons:**
-- Fails to compile on Python 3.13
-- Uses older C API
-- No Python 3.13 wheel available
-
-#### Option B: psycopg[binary]>=3.1.18 (Chosen ✅)
-**Pros:**
-- Native Python 3.13 support
-- Modern async support built-in
-- Pure Python with optional C extension
-- Active development
-
-**Cons:**
-- Slightly different API (SQLAlchemy dialect: `postgresql+psycopg://`)
-- Minor code change needed in database.py
+#### Option B: Use psycopg3 (Chosen ✅)
+- Native async support
+- Better Python 3.13 compatibility
+- Modern API
 
 ### Decision
 
 **Chose: psycopg3 (Option B)**
 
 **Rationale:**
-1. Python 3.13 compatibility is required (current environment)
-2. psycopg3 is the future - psycopg2 is maintenance-only
-3. SQLAlchemy supports psycopg3 natively
-4. Simple fix: change dialect in connection string
+1. psycopg3 is the modern successor to psycopg2
+2. Better Python 3.13+ compatibility
+3. No need to downgrade Python
+4. SQLAlchemy supports both with minimal config change
 
 ### Consequences
 
 **Positive:**
 - Works with Python 3.13
 - Future-proof choice
-- Better async support for later
+- Native async support available
 
 **Negative:**
-- Deviates from BUILD_SPEC.md
-- Required adding URL conversion in database.py
-
-**Code Changes:**
-- `requirements.txt`: `psycopg[binary]>=3.1.18`
-- `database.py`: Added dialect conversion `postgresql://` → `postgresql+psycopg://`
+- Required dialect change in database.py (`postgresql+psycopg://`)
 
 **Technical Debt:** None
-**Reversible:** Yes, if switching to older Python
 
 ---
 
-## Decision 5: Flexible Package Versions for Python 3.13
+## Decision 5: Flexible Package Versions
 
 **Date:** 2025-12-20
 **Status:** ✅ Accepted
-**Deciders:** Claude Code
 **Tags:** `dependencies`, `python`, `milestone-1`
 
 ### Context
 
-BUILD_SPEC.md specified exact versions (e.g., `pandas==2.1.4`, `numpy==1.26.3`) which are incompatible with Python 3.13.
-
-### Options Considered
-
-#### Option A: Exact versions (Original spec)
-**Pros:**
-- Reproducible builds
-- As specified
-
-**Cons:**
-- Won't install on Python 3.13
-- Old packages with potential security issues
-
-#### Option B: Minimum versions with >= (Chosen ✅)
-**Pros:**
-- Python 3.13 compatible
-- Gets latest security patches
-- Still maintains minimum functionality
-
-**Cons:**
-- Less reproducible (versions may drift)
-- Potential compatibility issues with newer versions
+Multiple packages (pandas, numpy) failed to build on Python 3.13 with exact version pins from BUILD_SPEC.md.
 
 ### Decision
 
-**Chose: Flexible versions (Option B)**
+Changed all `==` version pins to `>=` minimum versions in requirements.txt.
 
 **Rationale:**
-1. Python 3.13 is current environment - must work
-2. Semantic versioning means minor updates are compatible
-3. Can pin versions later if issues arise
-4. Production deployment will lock versions anyway
+1. Python 3.13 requires newer package versions
+2. `>=` allows pip to resolve compatible versions
+3. More maintainable long-term
 
 ### Consequences
 
 **Positive:**
 - All packages install successfully
-- Latest security patches included
-- pandas 2.3.3, numpy 2.3.5 work great
+- Automatic compatibility resolution
 
 **Negative:**
-- Versions may differ from BUILD_SPEC.md examples
-- Need to test if newer versions break anything
+- Slightly less reproducible builds (minor risk)
 
-**Technical Debt:** Consider creating `requirements.lock` for production
-**Reversible:** Yes, can pin versions anytime
+**Mitigation:**
+- Can add `pip freeze > requirements.lock` for exact versions later
 
 ---
 
-## Decision 6: Defer TensorFlow to Milestone 3
+## Decision 6: Keyword-Based Sentiment Analysis
 
-**Date:** 2025-12-20
+**Date:** 2025-12-21
 **Status:** ✅ Accepted
-**Deciders:** Claude Code
-**Tags:** `ml`, `dependencies`, `milestone-1`
+**Tags:** `sentiment`, `nlp`, `milestone-2`
 
 ### Context
 
-BUILD_SPEC.md includes TensorFlow and transformers in requirements.txt, but these are only needed for Milestone 3 (LSTM agent). They are heavy packages (~2GB) and have complex Python 3.13 compatibility.
+Need sentiment analysis for Reddit posts and news headlines. Options:
+- Simple keyword matching
+- Pre-trained models (FinBERT, VADER)
+- Custom ML model
 
 ### Options Considered
 
-#### Option A: Install all packages upfront
-**Pros:**
-- Matches BUILD_SPEC.md exactly
-- All deps ready when needed
+#### Option A: Keyword-based (Chosen ✅)
+- Simple positive/negative word lists
+- Fast, no dependencies
+- Works offline
 
-**Cons:**
-- TensorFlow 2.15.0 may not support Python 3.13
-- Adds 2GB+ to environment
-- Slows down pip install significantly
-- Not needed until Milestone 3
-
-#### Option B: Defer heavy ML packages (Chosen ✅)
-**Pros:**
-- Faster initial setup
-- Avoid compatibility issues now
-- Only install when actually needed
-- Smaller venv for M1-M2
-
-**Cons:**
-- Deviates from BUILD_SPEC.md
-- Will need to add later
+#### Option B: FinBERT
+- Financial domain-specific
+- Better accuracy
+- Requires transformers library (~2GB)
 
 ### Decision
 
-**Chose: Defer TensorFlow/transformers (Option B)**
+**Chose: Keyword-based for MVP (Option A)**
 
 **Rationale:**
-1. Not needed until Milestone 3 (AI Agents - LSTM)
-2. Avoid Python 3.13 compatibility debugging now
-3. Faster development iteration for M1-M2
-4. Can add with tested versions when needed
+1. Simple and fast for MVP
+2. No additional heavy dependencies
+3. Easy to understand and debug
+4. Good enough for initial testing
+5. FinBERT can be added in Milestone 3 as upgrade
 
 ### Consequences
 
 **Positive:**
-- Faster pip install (~30s vs ~5min)
-- No TensorFlow compatibility issues
-- Lighter virtual environment
+- Fast implementation
+- No model loading time
+- Easy to customize word lists
 
 **Negative:**
-- Need to add packages in Milestone 3
-- May discover issues later
+- Less accurate than ML models
+- Doesn't understand context
 
-**Technical Debt:** Add TensorFlow, transformers in M3 requirements
-**Reversible:** Yes, just add to requirements.txt later
+**Technical Debt:**
+- Should upgrade to FinBERT in Milestone 3 for better accuracy
+- Impact: Medium
+- Plan: Add as optional enhancement
+
+---
+
+## Decision 7: Reddit/News Sentiment Weighting (60/40)
+
+**Date:** 2025-12-21
+**Status:** ✅ Accepted
+**Tags:** `sentiment`, `algorithm`, `milestone-2`
+
+### Context
+
+Need to combine Reddit and News sentiment into single score. How to weight them?
+
+### Options Considered
+
+#### Option A: Equal weighting (50/50)
+- Simple
+- Treats both sources equally
+
+#### Option B: Reddit-heavy (60/40) (Chosen ✅)
+- Prioritizes retail investor sentiment
+- r/wallstreetbets often leads price moves
+
+#### Option C: News-heavy (40/60)
+- Prioritizes institutional/professional view
+- More "reliable" sources
+
+### Decision
+
+**Chose: 60% Reddit, 40% News (Option B)**
+
+**Rationale:**
+1. Alpha Machine targets AI/tech stocks popular with retail
+2. r/wallstreetbets sentiment often precedes price moves
+3. Retail sentiment more relevant for short-term signals
+4. News often lags market moves
+5. Can adjust weights based on backtesting results
+
+### Consequences
+
+**Positive:**
+- Captures retail momentum early
+- Aligned with target stock universe (AI/tech)
+
+**Negative:**
+- May miss institutional-driven moves
+- Reddit can be noisy/manipulated
+
+**Mitigation:**
+- Weights are configurable in code
+- Can A/B test different weightings later
+
+**Technical Debt:** None
+
+---
+
+## Decision 8: Circuit Breaker for API Resilience
+
+**Date:** 2025-12-21
+**Status:** ✅ Accepted
+**Deciders:** Claude Code
+**Tags:** `reliability`, `api`, `foundation-hardening`
+
+### Context
+
+External APIs (Polygon, Finnhub, Reddit, NewsAPI) can fail or rate-limit. Need resilient error handling.
+
+### Options Considered
+
+#### Option A: Simple retry with fixed delay
+- Easy to implement
+- Cons: Can hammer failing API, doesn't prevent cascading failures
+
+#### Option B: Retry with exponential backoff + Circuit Breaker (Chosen ✅)
+- Exponential backoff prevents API hammering
+- Circuit Breaker prevents repeated calls to failing services
+- Industry standard pattern
+
+### Decision
+
+**Chose: Retry + Circuit Breaker (Option B)**
+
+**Rationale:**
+1. Exponential backoff respects API rate limits
+2. Circuit Breaker prevents wasted calls when service is down
+3. Automatic recovery when service comes back
+4. Production-grade reliability pattern
+
+### Consequences
+
+**Positive:**
+- Resilient to transient failures
+- Prevents cascading failures
+- Automatic recovery
+
+**Negative:**
+- Slightly more complex code
+
+**Technical Debt:** None
+
+---
+
+## Decision 9: Rule-Based Agent as Baseline
+
+**Date:** 2025-12-21
+**Status:** ✅ Accepted
+**Deciders:** Claude Code
+**Tags:** `agents`, `architecture`, `foundation-hardening`
+
+### Context
+
+Need agent framework before implementing AI-powered agents. Should we start with AI agents directly or create a simpler baseline first?
+
+### Options Considered
+
+#### Option A: Start with AI agents (GPT-4, Claude)
+- Full power immediately
+- Cons: Complex, expensive to test, hard to debug
+
+#### Option B: Rule-based agent first (Chosen ✅)
+- Simple weighted scoring (RSI, momentum, sentiment)
+- No API costs during testing
+- Easy to understand and debug
+- Foundation for AI agents
+
+### Decision
+
+**Chose: Rule-based baseline first (Option B)**
+
+**Rationale:**
+1. Can test full pipeline without AI API costs
+2. Provides comparison baseline for AI agents
+3. Simpler to debug and understand
+4. Works offline/without API keys
+5. Still useful in production as "fast" signal
+
+### Consequences
+
+**Positive:**
+- Free testing of signal pipeline
+- Baseline for measuring AI agent value
+- Works immediately without AI API keys
+
+**Negative:**
+- Less sophisticated than AI agents
+
+**Technical Debt:** None (intentional design)
+
+---
+
+## Decision 10: Weighted Consensus Algorithm
+
+**Date:** 2025-12-21
+**Status:** ✅ Accepted
+**Deciders:** Claude Code
+**Tags:** `consensus`, `algorithm`, `foundation-hardening`
+
+### Context
+
+Multiple agents produce signals. Need algorithm to combine them into final recommendation.
+
+### Options Considered
+
+#### Option A: Simple majority vote
+- Easy to implement
+- Cons: Ignores confidence, all agents equal
+
+#### Option B: Weighted voting by agent weight (Chosen ✅)
+- Each agent has configurable weight
+- Signals weighted by confidence
+- Position sizing based on agreement
+
+#### Option C: ML meta-model
+- Train model on agent outputs
+- Cons: Complex, needs training data
+
+### Decision
+
+**Chose: Weighted voting (Option B)**
+
+**Rationale:**
+1. Balances simplicity with sophistication
+2. Agent weights allow tuning based on performance
+3. Confidence weighting surfaces high-conviction signals
+4. Agreement ratio informs position sizing
+5. No training data needed
+
+**Algorithm:**
+- Combined weight = agent_weight × signal_confidence
+- Weighted average score = Σ(score × weight) / Σ(weight)
+- Position size based on confidence + agreement
+
+### Consequences
+
+**Positive:**
+- Tunable per-agent influence
+- Position sizing reflects conviction
+- Interpretable decisions
+
+**Negative:**
+- Requires manual weight tuning initially
+
+**Mitigation:**
+- Can implement automatic weight adjustment based on agent performance
+
+**Technical Debt:** None
+
+---
+
+## Decision 11: Reddit Integration Postponed
+
+**Date:** 2025-12-21
+**Status:** ⏳ Temporary
+**Deciders:** User, Claude Code
+**Tags:** `sentiment`, `api`, `milestone-2`
+
+### Context
+
+Reddit API (PRAW) requires OAuth credentials. User will provide Reddit API keys later.
+
+### Decision
+
+**Temporarily skip Reddit integration. Sentiment analysis uses NewsAPI only.**
+
+**Current state:**
+- NewsAPI: ✅ Working (30 articles, sentiment scoring)
+- Reddit: ⏳ Skipped (credentials not configured)
+- Combined sentiment: Uses 100% News (instead of 60/40 split)
+
+### When Reddit Keys Are Available
+
+1. Add to `backend/.env`:
+   ```
+   REDDIT_CLIENT_ID=your_client_id
+   REDDIT_CLIENT_SECRET=your_client_secret
+   ```
+
+2. Reddit sentiment will automatically activate
+
+3. Combined sentiment will switch to:
+   - 60% Reddit (r/wallstreetbets, r/stocks, r/investing)
+   - 40% News
+
+### Consequences
+
+**Positive:**
+- Can proceed with development without blocking
+- NewsAPI provides sufficient sentiment for MVP testing
+- Easy to enable Reddit when keys are ready
+
+**Negative:**
+- Missing retail investor sentiment (Reddit often leads price moves)
+- Less accurate sentiment for meme stocks
+
+**Technical Debt:**
+- **REMINDER:** Reddit API keys still required for full functionality
+- Impact: Medium (sentiment less accurate without Reddit)
+- Plan: Add Reddit keys when available, no code changes needed
 
 ---
 
@@ -487,11 +700,18 @@ Decision 5: Use SQLite (superseded by Decision 1)
 
 **Intentional debt we've incurred:**
 
-1. **[Debt Item 1]**
-   - Why incurred: [Reason]
-   - Impact: Low/Medium/High
-   - Plan to resolve: [When/how]
-   - Related decision: #X
+1. **Keyword-based sentiment analysis**
+   - Why incurred: Faster MVP implementation, no heavy dependencies
+   - Impact: Medium (less accurate sentiment scores)
+   - Plan to resolve: Upgrade to FinBERT in Milestone 3
+   - Related decision: #6
+
+2. **Reddit API integration pending**
+   - Why incurred: API credentials not yet available
+   - Impact: Medium (missing retail investor sentiment from r/wallstreetbets)
+   - Plan to resolve: Add REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET to .env when available
+   - Related decision: #11
+   - **STATUS: WAITING FOR USER TO PROVIDE KEYS**
 
 ---
 

@@ -335,6 +335,104 @@ DECISIONS.md (only if applicable):
 
 ---
 
+## 🧪 MANDATORY TESTING REQUIREMENTS
+
+**Reference:** See `TESTING_PLAYBOOK.md` for full details.
+
+### **Test Coverage Targets**
+| Category | Required | Current |
+|----------|----------|---------|
+| Overall Coverage | 80% | 79% |
+| Agent Coverage | 100% | 86-95% |
+| Services Coverage | 80% | 80-95% |
+| API Endpoints | 75% | 71-84% |
+
+### **Test Categories (MUST maintain)**
+```
+tests/
+├── unit/           # 70% of tests - Fast, isolated
+│   ├── test_agents.py          # Base agent tests
+│   ├── test_ai_agents.py       # 100 AI agent tests
+│   ├── test_signal_generator.py
+│   ├── test_market_data.py
+│   ├── test_sentiment_data.py
+│   └── test_validation.py
+├── integration/    # 25% of tests - Component interaction
+│   └── test_multi_agent.py     # 45 integration tests
+├── e2e/           # 5% of tests - Full system flows
+│   └── test_signal_flow.py     # 15 E2E tests
+├── performance/   # Load and speed tests
+│   └── test_response_time.py   # 15 perf tests
+└── errors/        # Error handling
+    └── test_api_failures.py    # 25 error tests
+```
+
+### **Running Tests**
+```bash
+# Full suite with coverage
+pytest tests/ --cov=app --cov-report=term-missing
+
+# By category
+pytest tests/unit/ -v
+pytest -m integration
+pytest -m e2e
+pytest -m performance
+
+# Single agent
+pytest tests/unit/test_ai_agents.py::TestContrarianAgent -v
+```
+
+### **Test Requirements per Agent**
+Each AI agent MUST have 25 tests covering:
+- **Initialization** (3 tests): Creation, custom params, defaults
+- **Decision Logic** (5 tests): Buy/Sell/Hold signals
+- **Edge Cases** (4 tests): Missing data, empty inputs, extreme values
+- **API Failures** (4 tests): Timeout, rate limit, connection errors
+- **Data Validation** (4 tests): Invalid ticker, bad data formats
+- **Response Parsing** (3 tests): JSON parsing, markdown cleanup
+- **Circuit Breaker** (2 tests): Opens after failures, returns neutral
+
+### **Before Committing Code**
+```bash
+# Minimum verification
+pytest tests/unit/ -q
+
+# Full verification (before milestone)
+pytest tests/ --cov=app --cov-report=term -q
+```
+
+### **Test Writing Standards**
+```python
+# Every test MUST:
+# 1. Have descriptive docstring
+# 2. Use fixtures for mock data
+# 3. Assert specific outcomes
+# 4. Be independent (no shared state)
+
+@pytest.mark.unit
+def test_agent_returns_valid_signal(self, mock_market_data):
+    """Agent returns valid AgentSignal with required fields"""
+    agent = PredictorAgent()
+    result = agent.analyze("NVDA", mock_market_data)
+
+    assert isinstance(result, AgentSignal)
+    assert result.signal in SignalType
+    assert 0.0 <= result.confidence <= 1.0
+```
+
+### **Mock External APIs**
+```python
+# ALWAYS mock AI API calls in tests
+@patch('openai.OpenAI')
+def test_with_mocked_api(self, mock_openai):
+    mock_client = Mock()
+    mock_client.chat.completions.create.return_value = mock_response
+    mock_openai.return_value = mock_client
+    # Test logic here
+```
+
+---
+
 ## 🎯 QUALITY STANDARDS
 
 **Code you write must:**
