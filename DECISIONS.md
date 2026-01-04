@@ -36,7 +36,8 @@
 10. [Weighted consensus algorithm](#decision-10-weighted-consensus)
 11. [Reddit integration postponed](#decision-11-reddit-postponed)
 12. [Railway + Vercel Deployment](#decision-12-railway-vercel-deployment)
-13. [Example Decision Template](#decision-template)
+13. [Celery Beat Worker Deployment](#decision-13-celery-beat-worker-deployment-strategy)
+14. [Example Decision Template](#decision-template)
 
 ---
 
@@ -704,6 +705,114 @@ Need to deploy Alpha Machine to production. Multiple hosting options available:
 - Railway: ~$5/mo (hobby plan with PostgreSQL + Redis)
 - Vercel: Free tier
 - AI APIs: Variable (~$10-30/mo depending on usage)
+
+---
+
+## Decision 13: Celery Beat Worker Deployment Strategy
+
+**Date:** 2026-01-04
+**Status:** ✅ Accepted
+**Deciders:** Claude Code
+**Tags:** `celery`, `deployment`, `automation`, `post-mvp`
+
+### Context
+
+Need to deploy Celery Beat scheduler for automated signal generation. Railway already hosts the backend API. Key considerations:
+- Celery workers don't serve HTTP (no port binding)
+- Railway expects HTTP healthcheck by default
+- Need to share environment variables with backend
+- Worker should auto-restart on failure
+
+### Options Considered
+
+#### Option A: Separate Railway Service (Chosen ✅)
+**Pros:**
+- Independent scaling from API
+- Isolated logs and monitoring
+- Can restart worker without affecting API
+- Clear separation of concerns
+
+**Cons:**
+- Needs separate configuration
+- Environment variables duplicated
+- Additional Railway resource
+
+#### Option B: Same Service, Multiple Processes
+**Pros:**
+- Single deployment
+- Shared env vars automatically
+- Simpler management
+
+**Cons:**
+- Can't scale independently
+- Worker crash might affect API
+- Railway not designed for multi-process
+
+#### Option C: Dedicated Beat + Worker Services (3 total)
+**Pros:**
+- Beat and worker fully isolated
+- Fine-grained control
+
+**Cons:**
+- Overkill for current scale
+- More complexity
+- Higher cost
+
+### Decision
+
+**Chose: Separate Railway Service with Combined Worker+Beat (Option A)**
+
+**Rationale:**
+1. Worker service can fail without affecting API
+2. Combined `--beat` flag keeps Beat and Worker in single process (simpler)
+3. Railway GraphQL API allows fully automated deployment
+4. Separate config file without healthcheck (worker doesn't serve HTTP)
+
+### Implementation Notes
+
+**Worker Service Configuration:**
+```
+Service ID: 2840fcc8-1b25-4526-9ba4-73e14e01e8e6
+Start Command: celery -A app.tasks.celery_app worker --beat --loglevel=info --concurrency=2
+Root Directory: backend
+Config: Uses /railway.toml (root level, no healthcheck)
+```
+
+**Config File Strategy:**
+- `/railway.toml` (root) - No healthcheck, for worker service
+- `/backend/railway.toml` - With healthcheck, for API service
+
+**Healthcheck Issue Resolution:**
+Railway tried to healthcheck worker on HTTP endpoint, causing deployment failures. Solution:
+1. Created `/railway.toml` at project root without healthcheckPath
+2. Worker service uses this config (not backend/railway.toml)
+3. API service continues using backend/railway.toml with healthcheck
+
+**Self-Automation via GraphQL API:**
+All deployment steps done programmatically:
+- Service creation: `serviceCreate` mutation
+- GitHub connection: `serviceConnect` mutation
+- Environment variables: `variableUpsert` mutation
+- Deploy trigger: `serviceInstanceRedeploy` mutation
+
+### Consequences
+
+**Positive:**
+- Automated signal generation at 9AM + 12PM EST
+- Fully automated deployment (no manual Railway UI needed)
+- Independent worker lifecycle from API
+- Clear configuration separation
+
+**Negative:**
+- Environment variables need to be copied to worker service
+- Multiple deployment attempts needed to debug healthcheck issue (6 tries)
+
+**Technical Debt:** None
+
+**Lessons Learned:**
+- Celery workers need separate Railway config without healthcheck
+- Root-level config file works for services with different rootDirectory settings
+- Railway GraphQL API is powerful for infrastructure automation
 
 ---
 

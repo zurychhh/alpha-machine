@@ -1,9 +1,9 @@
 # ALPHA MACHINE - PROJECT STATUS
 ## Live Development State
 
-**Last Updated:** 2026-01-04 09:45 CET
+**Last Updated:** 2026-01-04 11:05 CET
 **Updated By:** Claude Code
-**Session:** 9 - POST-MVP Stabilization
+**Session:** 10 - Celery Beat Automation
 
 ---
 
@@ -28,6 +28,11 @@
   - PredictorAgent (rule-based, local) ✅
 - ✅ 20 signals generated with full 4-agent analysis
 - ✅ 388 tests passing (79% coverage)
+- ✅ **Celery Beat Automation DEPLOYED** (Session 10)
+  - Worker Service ID: `2840fcc8-1b25-4526-9ba4-73e14e01e8e6`
+  - Schedule: 9AM + 12PM signals, 4:30PM analysis
+  - Market data refresh every 5 min
+  - Sentiment refresh every 30 min
 
 ---
 
@@ -666,13 +671,13 @@ None - all clear ✅
 ## 🎯 NEXT ACTIONS (POST-MVP)
 
 ### Phase 1: Automation (Priority: HIGH)
-1. **Celery Beat** - Scheduled daily signal generation
-   - Run at 9:00 EST (market open)
-   - Auto-generate signals for all watchlist stocks
-   - Store in PostgreSQL with timestamps
-   - Estimated: 2-3 hours implementation
+1. ✅ **Celery Beat** - Scheduled daily signal generation (DEPLOYED)
+   - ✅ Runs at 9:00 + 12:00 EST
+   - ✅ Auto-generates signals for all watchlist stocks
+   - ✅ Stores in PostgreSQL with timestamps
+   - ✅ Worker Service ID: `2840fcc8-1b25-4526-9ba4-73e14e01e8e6`
 
-2. **Telegram Bot** - Notifications
+2. **Telegram Bot** - Notifications (NEXT)
    - Send alerts for strong signals (confidence ≥75%)
    - Daily summary of all generated signals
    - Commands: /signals, /watchlist, /status
@@ -728,6 +733,66 @@ None - all clear ✅
 ---
 
 ## 🔄 SESSION LOG
+
+### Session 10 - 2026-01-04 (Celery Beat Automation)
+**Duration:** ~60 minutes
+**Focus:** Deploy Celery worker with Beat scheduler to Railway
+
+**Part 1: Bug Fix**
+- ✅ Fixed critical bug in `signal_tasks.py:117`
+- ✅ Changed `Watchlist.is_active` → `Watchlist.active`
+- ✅ Would have caused runtime errors during scheduled signal generation
+
+**Part 2: Local Testing**
+- ✅ Verified Celery app imports correctly
+- ✅ Redis connection working (PONG response)
+- ✅ Tested `generate_signal_for_ticker('NVDA')` - SUCCESS
+- ✅ Result: HOLD signal, 73.5% confidence, 4 agents contributing
+
+**Part 3: Railway Worker Deployment (via GraphQL API)**
+- ✅ Created new service `celery-worker` programmatically
+- ✅ Worker Service ID: `2840fcc8-1b25-4526-9ba4-73e14e01e8e6`
+- ✅ Connected to GitHub repo `zurychhh/alpha-machine`
+- ✅ Set start command: `celery -A app.tasks.celery_app worker --beat --loglevel=info --concurrency=2`
+- ✅ Copied all environment variables from backend service
+
+**Part 4: Healthcheck Resolution**
+- ❌ Initial deployments failed (Railway checking HTTP endpoint)
+- ✅ Created `/railway.toml` (root) without healthcheck for worker
+- ✅ Backend keeps `backend/railway.toml` with healthcheck
+- ✅ Final deployment: SUCCESS after 6 attempts
+
+**Part 5: Documentation Updates**
+- ✅ Added "Self-Automation Principle" to CLAUDE.md
+- ✅ Added Railway API reference with service IDs
+- ✅ Updated STATUS.md with Session 10 info
+- ✅ Added Decision 13 to DECISIONS.md
+
+**Schedule Configuration (Celery Beat):**
+```
+9:00 AM EST  - generate_daily_signals_task (all watchlist)
+12:00 PM EST - generate_daily_signals_task (midday update)
+4:30 PM EST  - analyze_signal_performance_task (EOD analysis)
+Every 5 min  - refresh_market_data_task
+Every 30 min - refresh_sentiment_data_task
+```
+
+**Files Created/Modified:**
+- `backend/app/tasks/signal_tasks.py` - Fixed is_active bug
+- `backend/Procfile` - Added worker process definition
+- `CLAUDE.md` - Added Self-Automation Principle + Railway API reference
+- `railway.toml` (root) - Config without healthcheck for worker
+- `backend/railway-worker.toml` - Alternative config (not used)
+
+**Git Tags:**
+- `celery-beat-deployed` - Worker successfully deployed
+
+**Issues Resolved:**
+- ✅ Healthcheck incompatibility - Worker doesn't serve HTTP, created separate config
+- ✅ Config file path resolution - Used root-level config instead of backend/
+- ✅ Multiple deployment attempts - Resolved with correct config structure
+
+---
 
 ### Session 9 - 2026-01-04 (Milestone 6: Deployment + Stabilization)
 **Duration:** ~90 minutes
