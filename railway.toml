@@ -1,0 +1,5 @@
+# Empty config for worker service
+# No healthcheck since Celery doesn't serve HTTP
+[deploy]
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
