@@ -6,6 +6,7 @@ sys.path.insert(0, '/app')
 from app.core.database import Base, engine, SessionLocal
 from app.models.signal import Signal
 from app.models.watchlist import Watchlist
+from app.models.backtest_result import BacktestResult
 
 # Default AI stocks to track
 DEFAULT_STOCKS = [
