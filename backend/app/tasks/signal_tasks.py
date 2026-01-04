@@ -114,7 +114,7 @@ def generate_daily_signals_task(
 
     try:
         # Get all active tickers from watchlist
-        watchlist = db.query(Watchlist).filter(Watchlist.is_active == True).all()
+        watchlist = db.query(Watchlist).filter(Watchlist.active == True).all()
 
         if not watchlist:
             results["status"] = "no_tickers"
