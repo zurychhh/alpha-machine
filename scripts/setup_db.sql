@@ -97,6 +97,27 @@ CREATE TABLE IF NOT EXISTS sentiment_data (
     FOREIGN KEY (ticker) REFERENCES watchlist(ticker)
 );
 
+-- Backtest Results: Individual trade results from backtesting
+CREATE TABLE IF NOT EXISTS backtest_results (
+    id SERIAL PRIMARY KEY,
+    backtest_id VARCHAR(50) NOT NULL, -- UUID per backtest run
+    signal_id INTEGER NOT NULL,
+    entry_date DATE NOT NULL,
+    exit_date DATE NOT NULL,
+    entry_price DECIMAL(10,2) NOT NULL,
+    exit_price DECIMAL(10,2) NOT NULL,
+    shares INTEGER NOT NULL,
+    pnl DECIMAL(10,2) NOT NULL, -- Dollar P&L
+    pnl_pct DECIMAL(7,3) NOT NULL, -- Percentage return
+    trade_result VARCHAR(10) NOT NULL, -- WIN or LOSS
+    days_held INTEGER NOT NULL,
+    exit_reason VARCHAR(20), -- STOP_LOSS, TAKE_PROFIT, HOLD_PERIOD_END
+    position_type VARCHAR(20), -- CORE, SATELLITE, EQUAL
+    allocation_pct DECIMAL(5,3), -- e.g., 0.60 = 60%
+    created_at TIMESTAMP DEFAULT NOW(),
+    FOREIGN KEY (signal_id) REFERENCES signals(id)
+);
+
 -- Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_signals_ticker ON signals(ticker);
 CREATE INDEX IF NOT EXISTS idx_signals_timestamp ON signals(timestamp DESC);
@@ -104,6 +125,8 @@ CREATE INDEX IF NOT EXISTS idx_signals_status ON signals(status);
 CREATE INDEX IF NOT EXISTS idx_agent_analysis_signal ON agent_analysis(signal_id);
 CREATE INDEX IF NOT EXISTS idx_market_data_ticker_time ON market_data(ticker, timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_sentiment_ticker_time ON sentiment_data(ticker, timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_backtest_results_backtest_id ON backtest_results(backtest_id);
+CREATE INDEX IF NOT EXISTS idx_backtest_results_signal_id ON backtest_results(signal_id);
 
 -- Seed initial watchlist with AI stocks
 INSERT INTO watchlist (ticker, company_name, sector, tier) VALUES

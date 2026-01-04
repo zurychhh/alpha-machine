@@ -10,6 +10,7 @@ from app.models.portfolio import Portfolio
 from app.models.performance import Performance
 from app.models.market_data import MarketData
 from app.models.sentiment_data import SentimentData
+from app.models.backtest_result import BacktestResult
 
 __all__ = [
     "Watchlist",
@@ -19,4 +20,5 @@ __all__ = [
     "Performance",
     "MarketData",
     "SentimentData",
+    "BacktestResult",
 ]

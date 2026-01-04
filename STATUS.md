@@ -1,9 +1,9 @@
 # ALPHA MACHINE - PROJECT STATUS
 ## Live Development State
 
-**Last Updated:** 2026-01-04 11:05 CET
+**Last Updated:** 2026-01-04 21:05 CET
 **Updated By:** Claude Code
-**Session:** 10 - Celery Beat Automation
+**Session:** 11 - Backtest Engine Implementation
 
 ---
 
@@ -27,12 +27,17 @@
   - MultiModalAgent (Google Gemini 2.0 Flash) ✅
   - PredictorAgent (rule-based, local) ✅
 - ✅ 20 signals generated with full 4-agent analysis
-- ✅ 388 tests passing (79% coverage)
+- ✅ 470 tests passing (79% coverage)
 - ✅ **Celery Beat Automation DEPLOYED** (Session 10)
   - Worker Service ID: `2840fcc8-1b25-4526-9ba4-73e14e01e8e6`
   - Schedule: 9AM + 12PM signals, 4:30PM analysis
   - Market data refresh every 5 min
   - Sentiment refresh every 30 min
+- ✅ **Backtest Engine IMPLEMENTED** (Session 11)
+  - Signal Ranker (composite scoring)
+  - Portfolio Allocator (CORE_FOCUS, BALANCED, DIVERSIFIED)
+  - Full P&L simulation with stop-loss/take-profit
+  - API: `/api/v1/backtest/*`
 
 ---
 
@@ -307,9 +312,9 @@ frontend/
 
 **⚠️ READ THIS FIRST when resuming work**
 
-### Exact Current State (2026-01-04 09:45 CET)
+### Exact Current State (2026-01-04 21:10 CET)
 
-**🎉 ALL 6 MILESTONES COMPLETE - MVP FULLY OPERATIONAL**
+**🎉 ALL 6 MILESTONES COMPLETE + BACKTEST ENGINE IMPLEMENTED**
 
 **Production URLs:**
 - 🌐 Frontend: https://zurychhh-alpha-machine.vercel.app
@@ -328,7 +333,7 @@ frontend/
 | Railway Backend | ✅ Deployed | PostgreSQL + Redis + FastAPI |
 | Vercel Frontend | ✅ Deployed | React dashboard accessible |
 | Watchlist | ✅ Seeded | 10 AI/tech stocks |
-| Test Suite | ✅ 388 tests | 100% pass rate, 79% coverage |
+| Test Suite | ✅ 470 tests | 100% pass rate, 79% coverage |
 | Auto-Deploy | ✅ Configured | Push to main → auto deploy |
 
 **Latest Signals (Full 4-Agent Analysis):**
@@ -733,6 +738,72 @@ None - all clear ✅
 ---
 
 ## 🔄 SESSION LOG
+
+### Session 11 - 2026-01-04 (Backtest Engine Implementation)
+**Duration:** ~45 minutes
+**Focus:** Implement Backtest Engine with Portfolio Optimization
+
+**Key Deliverables:**
+- ✅ `app/services/signal_ranker.py` - Ranks signals by composite score
+- ✅ `app/services/portfolio_allocator.py` - 3 allocation modes (CORE_FOCUS, BALANCED, DIVERSIFIED)
+- ✅ `app/services/backtesting.py` - Full backtest engine with P&L simulation
+- ✅ `app/models/backtest_result.py` - SQLAlchemy model for trade results
+- ✅ `app/api/endpoints/backtest.py` - 6 API endpoints for backtesting
+- ✅ `alembic/versions/001_add_backtest_results.sql` - Database migration
+- ✅ `tests/unit/test_backtesting.py` - 23 comprehensive tests
+- ✅ 470 tests passing (82 new tests since MVP baseline)
+
+**New Features:**
+1. **Signal Ranker** - Composite score = confidence × expected_return × (1/risk_factor)
+2. **Portfolio Allocator** - Three strategies:
+   - CORE_FOCUS: 60% top pick, 10% each next 3, 10% cash
+   - BALANCED: 40% top, 12.5% each next 4, 10% cash
+   - DIVERSIFIED: 16% each top 5, 20% cash
+3. **Backtest Engine** - Full simulation with:
+   - Historical trade execution
+   - Stop-loss (10%) and take-profit (25%) logic
+   - P&L calculation per trade
+   - Win rate, Sharpe ratio, max drawdown metrics
+   - Agent performance breakdown
+
+**API Endpoints Added:**
+```
+POST /api/v1/backtest/run              - Run backtest
+GET  /api/v1/backtest/{id}/results     - Get trade results
+GET  /api/v1/backtest/{id}/agent-performance - Agent breakdown
+POST /api/v1/backtest/compare-modes    - Compare all 3 modes
+GET  /api/v1/backtest/modes            - List mode descriptions
+GET  /api/v1/backtest/history          - Backtest history
+```
+
+**Files Created:**
+- `backend/app/services/signal_ranker.py` (90 lines)
+- `backend/app/services/portfolio_allocator.py` (150 lines)
+- `backend/app/services/backtesting.py` (350 lines)
+- `backend/app/models/backtest_result.py` (45 lines)
+- `backend/app/api/endpoints/backtest.py` (280 lines)
+- `backend/alembic/versions/001_add_backtest_results.sql` (25 lines)
+- `backend/tests/unit/test_backtesting.py` (550 lines)
+
+**Files Modified:**
+- `backend/app/models/__init__.py` - Added BacktestResult export
+- `backend/app/services/__init__.py` - Added ranker, allocator, engine exports
+- `backend/app/api/endpoints/__init__.py` - Added backtest endpoint
+- `backend/app/main.py` - Registered backtest router
+- `scripts/setup_db.sql` - Added backtest_results table
+
+**Issues Resolved:**
+- ✅ Fixed test mock chain error (`TypeError: object of type 'Mock' has no len()`)
+  - Solution: Use `MagicMock()` instead of `Mock()` for SQLAlchemy query chains
+
+**Test Results:**
+```
+470 passed in 270.63s (0:04:30)
+- 23 new backtest tests
+- All existing 447 tests still passing
+```
+
+---
 
 ### Session 10 - 2026-01-04 (Celery Beat Automation)
 **Duration:** ~60 minutes
