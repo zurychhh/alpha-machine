@@ -663,25 +663,49 @@ None - all clear ✅
 
 ---
 
-## 🎯 NEXT ACTIONS
+## 🎯 NEXT ACTIONS (POST-MVP)
 
-### Immediate (Milestone 4 - Signal Generation)
-1. Implement scheduled signal generation (Celery tasks)
-2. Store signals in PostgreSQL database
-3. Add signal history endpoint
-4. Implement watchlist-based batch signal generation
-5. Add signal alerts/notifications
+### Phase 1: Automation (Priority: HIGH)
+1. **Celery Beat** - Scheduled daily signal generation
+   - Run at 9:00 EST (market open)
+   - Auto-generate signals for all watchlist stocks
+   - Store in PostgreSQL with timestamps
+   - Estimated: 2-3 hours implementation
 
-### Short Term (Milestone 5 - Dashboard)
-1. Create Next.js frontend
-2. Build real-time signal dashboard
-3. Add portfolio tracking view
-4. Implement performance charts
+2. **Telegram Bot** - Notifications
+   - Send alerts for strong signals (confidence ≥75%)
+   - Daily summary of all generated signals
+   - Commands: /signals, /watchlist, /status
+   - Estimated: 2-3 hours implementation
 
-### Long Term
-1. Complete all 6 milestones
-2. Deploy to Railway + Vercel
-3. Begin paper trading
+### Phase 2: Validation (Priority: MEDIUM)
+3. **Paper Trading** - 1-2 weeks validation
+   - Track signal accuracy without real money
+   - Compare predicted vs actual price movements
+   - Build confidence in system reliability
+
+4. **Performance Dashboard** - Enhanced analytics
+   - Signal accuracy tracking over time
+   - Agent agreement visualization
+   - Sector-based signal heatmaps
+
+### Phase 3: Expansion (Priority: LOW)
+5. **More Stocks** - Expand watchlist
+   - Add more AI/tech stocks beyond current 10
+   - Consider other sectors (biotech, fintech)
+
+6. **Interactive Brokers Integration**
+   - Real trading execution (after paper trading success)
+   - Position management
+   - Risk controls
+
+### ✅ COMPLETED MILESTONES
+- Milestone 1: Project Foundation ✅
+- Milestone 2: Data Pipeline ✅
+- Milestone 3: AI Agents ✅
+- Milestone 4: Signal Generation ✅
+- Milestone 5: Dashboard ✅
+- Milestone 6: Deployment ✅
 
 ---
 
