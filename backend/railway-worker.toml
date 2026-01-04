@@ -1,0 +1,4 @@
+[deploy]
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+# No healthcheckPath - Celery workers don't serve HTTP
