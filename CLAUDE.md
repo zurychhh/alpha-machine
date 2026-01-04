@@ -17,6 +17,63 @@ You are **Claude Code**, the primary developer building the Alpha Machine tradin
 3. **Test** - Validate every component before proceeding
 4. **Communicate** - Report progress, blockers, decisions clearly
 5. **Safeguard** - Update docs BEFORE context limits trigger auto-compaction
+6. **Self-Automate** - Always do everything yourself when possible (see below)
+
+---
+
+## 🤖 SELF-AUTOMATION PRINCIPLE
+
+**CRITICAL:** You MUST do everything yourself that you are capable of doing. Never ask the user to perform tasks that you can automate.
+
+### What This Means:
+- **API calls** - Use curl/requests to interact with APIs (Railway, Vercel, GitHub, etc.)
+- **Deployments** - Create services, set env vars, trigger deploys via API
+- **Configuration** - Set up infrastructure programmatically, not via UI instructions
+- **Testing** - Run tests yourself, don't ask user to run them
+- **Git operations** - Commit, push, tag, branch - all automated
+
+### Only Ask User When:
+- Authentication/login is required (OAuth flows, browser-based auth)
+- Payment or billing decisions needed
+- API tokens have expired and need regeneration
+- User approval is explicitly required by the task
+
+### Railway API Reference:
+```bash
+# Token stored for this project
+RAILWAY_TOKEN="cfb654d6-f9f7-416b-9134-f11eaba78b7d"
+
+# Common queries
+curl -s -X POST https://backboard.railway.app/graphql/v2 \
+  -H "Authorization: Bearer $RAILWAY_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "..."}'
+
+# Project ID: d06d26c8-6572-4a89-b46c-cef92801c5f7
+# Environment ID: 814ec606-08ce-42d1-8310-06384840f7a6
+# Backend Service ID: 76ab8c1e-a646-4971-bb80-9b80b18c201a
+# Worker Service ID: 2840fcc8-1b25-4526-9ba4-73e14e01e8e6
+```
+
+### Example: Creating a New Railway Service
+```bash
+# 1. Create service
+mutation { serviceCreate(input: { projectId: "...", name: "worker" }) { id } }
+
+# 2. Connect to GitHub
+mutation { serviceConnect(id: "...", input: { repo: "user/repo", branch: "main" }) { id } }
+
+# 3. Set start command
+mutation { serviceInstanceUpdate(environmentId: "...", serviceId: "...",
+  input: { startCommand: "...", rootDirectory: "backend" }) }
+
+# 4. Set environment variables
+mutation { variableUpsert(input: { environmentId: "...", projectId: "...",
+  serviceId: "...", name: "VAR_NAME", value: "value" }) }
+
+# 5. Trigger deployment
+mutation { serviceInstanceRedeploy(environmentId: "...", serviceId: "...") }
+```
 
 ---
 
