@@ -39,6 +39,40 @@
   - Full P&L simulation with stop-loss/take-profit
   - API: `/api/v1/backtest/*`
 
+### 💼 Business Value Summary
+
+**Co oferuje Alpha Machine?**
+
+System automatycznie:
+1. **Zbiera dane** - ceny akcji (Polygon, Finnhub), sentiment (News, Reddit)
+2. **Analizuje** - 4 niezależne AI agenty oceniają każdą akcję
+3. **Generuje sygnały** - BUY/SELL/HOLD z poziomem pewności (1-5)
+4. **Waliduje strategię** - Backtest Engine testuje bez ryzyka realnych pieniędzy
+
+**Tryby alokacji portfela:**
+| Tryb | Strategia | Dla kogo? |
+|------|-----------|-----------|
+| CORE_FOCUS | 60% w najlepszą akcję | Agresywny inwestor |
+| BALANCED | 40% core + 4 satelity | Zbalansowane ryzyko |
+| DIVERSIFIED | 5 akcji po 16% + 20% cash | Konserwatywny inwestor |
+
+**Przykładowy przepływ:**
+```
+Sygnał BUY NVDA (confidence: 4/5, target: +25%, stop: -10%)
+  ↓
+Backtest: Testuj na danych historycznych
+  ↓
+Wynik: Win rate 68%, Sharpe 1.85, Max Drawdown -12%
+  ↓
+Decyzja: Alokuj $30,000 (60%) w trybie CORE_FOCUS
+```
+
+**Wartość dla użytkownika:**
+- 🛡️ Zero ryzyka podczas testów (backtest przed live trading)
+- 📊 4 niezależne perspektywy AI (nie tylko jedna opinia)
+- 💰 Automatyczna alokacja kapitału wg strategii
+- 📈 Metryki: P&L, win rate, Sharpe ratio, max drawdown
+
 ---
 
 ## ✅ COMPLETED MILESTONES
@@ -795,6 +829,8 @@ GET  /api/v1/backtest/history          - Backtest history
 **Issues Resolved:**
 - ✅ Fixed test mock chain error (`TypeError: object of type 'Mock' has no len()`)
   - Solution: Use `MagicMock()` instead of `Mock()` for SQLAlchemy query chains
+- ✅ Fixed SQL timestamp comparison error (date string vs timestamp)
+  - Solution: Convert date strings to `datetime` objects before query
 
 **Test Results:**
 ```
@@ -802,6 +838,16 @@ GET  /api/v1/backtest/history          - Backtest history
 - 23 new backtest tests
 - All existing 447 tests still passing
 ```
+
+**Git Commits:**
+- `13facb7` - feat: Add Backtest Engine with Portfolio Optimization
+- `c93183e` - fix: Include BacktestResult model in init_db
+- `774d40d` - fix: Convert date strings to datetime for SQL comparison
+
+**Production Deployment:**
+- ✅ Railway auto-deployed
+- ✅ Database migration applied (backtest_results table created)
+- ✅ All 6 backtest endpoints operational
 
 ---
 

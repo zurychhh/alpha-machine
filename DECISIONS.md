@@ -37,7 +37,8 @@
 11. [Reddit integration postponed](#decision-11-reddit-postponed)
 12. [Railway + Vercel Deployment](#decision-12-railway-vercel-deployment)
 13. [Celery Beat Worker Deployment](#decision-13-celery-beat-worker-deployment-strategy)
-14. [Example Decision Template](#decision-template)
+14. [Backtest Engine Architecture](#decision-14-backtest-engine-architecture)
+15. [Example Decision Template](#decision-template)
 
 ---
 
@@ -813,6 +814,137 @@ All deployment steps done programmatically:
 - Celery workers need separate Railway config without healthcheck
 - Root-level config file works for services with different rootDirectory settings
 - Railway GraphQL API is powerful for infrastructure automation
+
+---
+
+## Decision 14: Backtest Engine Architecture
+
+**Date:** 2026-01-04
+**Status:** ✅ Accepted
+**Deciders:** Claude Code
+**Tags:** `backtesting`, `portfolio`, `validation`, `post-mvp`
+
+### Context
+
+Need system to validate signal quality before live trading. Key requirements:
+- Simulate historical trade execution with realistic assumptions
+- Compare different portfolio allocation strategies
+- Calculate comprehensive performance metrics (P&L, Sharpe ratio, win rate)
+- Track individual agent contribution to performance
+
+### Options Considered
+
+#### Option A: Simple Buy-and-Hold Backtester
+**Pros:**
+- Easy to implement
+- Clear results
+
+**Cons:**
+- Doesn't test allocation strategies
+- Ignores position sizing
+- No stop-loss/take-profit simulation
+
+#### Option B: Full Portfolio Simulator with Allocation Modes (Chosen ✅)
+**Pros:**
+- Tests different allocation strategies (CORE_FOCUS, BALANCED, DIVERSIFIED)
+- Signal ranking by quality score
+- Realistic P&L with stop-loss/take-profit
+- Agent performance tracking
+- Mode comparison endpoint
+
+**Cons:**
+- More complex implementation
+- Requires market data for exit prices
+
+#### Option C: Event-Driven Backtester
+**Pros:**
+- Most accurate simulation
+- Handles complex scenarios
+
+**Cons:**
+- Overkill for MVP validation
+- Significantly more complex
+- Hard to debug
+
+### Decision
+
+**Chose: Full Portfolio Simulator (Option B)**
+
+**Rationale:**
+1. Three allocation modes enable strategy comparison before live trading
+2. Signal ranking ensures capital deployed to highest-quality signals first
+3. Stop-loss (10%) and take-profit (25%) reflect realistic risk management
+4. Agent performance tracking helps tune agent weights
+5. Complexity justified by business value - protects capital in production
+
+### Implementation Details
+
+**Three-Stage Pipeline:**
+```
+Signals → SignalRanker → PortfolioAllocator → BacktestEngine → Results
+```
+
+**Signal Ranker Algorithm:**
+```python
+composite_score = confidence × expected_return × (1 / risk_factor)
+```
+- Ranks BUY signals by quality score
+- Prioritizes high-confidence, high-return, low-risk signals
+
+**Portfolio Allocation Modes:**
+
+| Mode | Core Position | Satellites | Cash Reserve | Risk Level |
+|------|---------------|------------|--------------|------------|
+| CORE_FOCUS | 60% (1 stock) | 10% each (3 stocks) | 10% | High |
+| BALANCED | 40% (1 stock) | 12.5% each (4 stocks) | 10% | Medium |
+| DIVERSIFIED | 16% each (5 stocks) | Equal weight | 20% | Low |
+
+**Trade Simulation:**
+- Entry: At signal's entry_price
+- Exit conditions (whichever first):
+  - Hold period expired → exit at market price
+  - Stop-loss triggered (-10%) → exit at stop-loss price
+  - Take-profit triggered (+25%) → exit at target price
+
+**Performance Metrics:**
+- Total P&L (absolute and percentage)
+- Win rate (trades with positive P&L)
+- Sharpe ratio (risk-adjusted return)
+- Max drawdown (largest peak-to-trough decline)
+- Per-agent win rate breakdown
+
+### API Endpoints
+
+```
+POST /api/v1/backtest/run              - Execute backtest
+GET  /api/v1/backtest/{id}/results     - Individual trade results
+GET  /api/v1/backtest/{id}/agent-performance - Agent contribution
+POST /api/v1/backtest/compare-modes    - Compare all 3 modes
+GET  /api/v1/backtest/modes            - Mode descriptions
+GET  /api/v1/backtest/history          - Past backtests
+```
+
+### Consequences
+
+**Positive:**
+- Validates signal quality before risking real capital
+- Enables data-driven strategy selection
+- Identifies best-performing agents for weight tuning
+- Provides confidence metrics for paper trading phase
+
+**Negative:**
+- Requires historical market data for accurate exit prices
+- Past performance doesn't guarantee future results (standard disclaimer)
+
+**Technical Debt:**
+- Currently uses simplified exit price logic (could enhance with real historical OHLC)
+- Impact: Low (good enough for validation)
+
+**Business Value:**
+- **Risk Reduction:** Test strategies with $0 at risk
+- **Strategy Optimization:** Compare CORE_FOCUS vs BALANCED vs DIVERSIFIED
+- **Agent Tuning:** Identify which agents contribute most to profitable signals
+- **Confidence Building:** Quantitative evidence before live trading
 
 ---
 
