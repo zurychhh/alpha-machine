@@ -35,7 +35,8 @@
 9. [Rule-based agent as baseline](#decision-9-rule-based-baseline)
 10. [Weighted consensus algorithm](#decision-10-weighted-consensus)
 11. [Reddit integration postponed](#decision-11-reddit-postponed)
-12. [Example Decision Template](#decision-template)
+12. [Railway + Vercel Deployment](#decision-12-railway-vercel-deployment)
+13. [Example Decision Template](#decision-template)
 
 ---
 
@@ -614,6 +615,95 @@ Reddit API (PRAW) requires OAuth credentials. User will provide Reddit API keys 
 - **REMINDER:** Reddit API keys still required for full functionality
 - Impact: Medium (sentiment less accurate without Reddit)
 - Plan: Add Reddit keys when available, no code changes needed
+
+---
+
+## Decision 12: Railway + Vercel Deployment
+
+**Date:** 2026-01-04
+**Status:** ✅ Accepted
+**Deciders:** Claude Code, User
+**Tags:** `deployment`, `infrastructure`, `milestone-6`
+
+### Context
+
+Need to deploy Alpha Machine to production. Multiple hosting options available:
+- Railway (backend) + Vercel (frontend) - BUILD_SPEC.md recommendation
+- AWS (ECS, RDS, ElastiCache) - enterprise grade
+- Heroku - simple but expensive
+- Self-hosted VPS - cheapest but most work
+
+### Options Considered
+
+#### Option A: Railway + Vercel (Chosen ✅)
+**Pros:**
+- Railway: Native PostgreSQL + Redis support, auto-deploy from GitHub
+- Vercel: Excellent for React/Next.js, free tier generous
+- Simple configuration (Procfile, vercel.json)
+- Cost: ~$5-10/mo Railway + free Vercel
+
+**Cons:**
+- Railway CLI auth issues (used GraphQL API instead)
+- Need separate services configuration
+
+#### Option B: AWS (ECS + RDS + ElastiCache)
+**Pros:**
+- Enterprise-grade, highly scalable
+- Full control
+
+**Cons:**
+- Expensive (~$50-100/mo minimum)
+- Complex setup (VPC, security groups, IAM)
+- Overkill for single-user system
+
+### Decision
+
+**Chose: Railway + Vercel (Option A)**
+
+**Rationale:**
+1. BUILD_SPEC.md recommended this stack
+2. Auto-deploy from GitHub (push to main → deploy)
+3. Managed PostgreSQL and Redis included
+4. Cost effective (~$5-10/mo)
+5. Simple configuration (Procfile + environment variables)
+
+### Implementation Notes
+
+**Railway setup:**
+- Used Nixpacks builder (auto-detects Python)
+- Procfile: `web: python scripts/init_db.py && uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- Environment variables set as shared variables in project
+- Auto-deploy on push to main branch
+
+**Vercel setup:**
+- Connected to GitHub repo
+- Auto-deploys frontend folder
+- API proxy configured in vercel.json
+
+**Issues Encountered:**
+1. Dockerfile not found → switched to Nixpacks
+2. Port binding hardcoded → fixed to use $PORT
+3. Anthropic API credits → user added credits to account
+4. Vercel authentication → user disabled team-level auth
+
+### Consequences
+
+**Positive:**
+- Zero-downtime deployments
+- Auto-scaling on Railway
+- Git-based workflow
+- Affordable for MVP
+
+**Negative:**
+- Railway CLI authentication issues (workaround: GraphQL API)
+- Environment variables need manual setup per service
+
+**Technical Debt:** None
+
+**Cost:**
+- Railway: ~$5/mo (hobby plan with PostgreSQL + Redis)
+- Vercel: Free tier
+- AI APIs: Variable (~$10-30/mo depending on usage)
 
 ---
 
