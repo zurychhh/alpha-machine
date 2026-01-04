@@ -265,8 +265,32 @@ frontend/
 
 ---
 
-### Milestone 6: Automation & Deployment ❌
-**Status:** Not Started
+### Milestone 6: Deployment ✅ (Complete)
+**Completed:** 2026-01-04
+**Status:** Complete
+**Progress:** 100%
+
+**Key Deliverables:**
+- ✅ Railway backend deployment (PostgreSQL + Redis + FastAPI)
+- ✅ Database auto-initialization on startup
+- ✅ Vercel frontend deployment
+- ✅ API proxy configuration (Vercel → Railway)
+- ✅ GitHub repository: https://github.com/zurychhh/alpha-machine
+
+**Production URLs:**
+- **Backend API:** https://backend-production-a7f4.up.railway.app
+- **Frontend:** https://zurychhh-alpha-machine.vercel.app
+- **Health Check:** https://backend-production-a7f4.up.railway.app/api/v1/health
+
+**Railway Services:**
+- PostgreSQL: Running and connected
+- Redis: Running and connected
+- Backend: Running with auto-deploy from GitHub
+
+**Note:** Vercel has team-level authentication enabled. To access the frontend publicly:
+1. Go to https://vercel.com/zurychhhs-projects/frontend/settings
+2. Navigate to "Deployment Protection"
+3. Disable "Vercel Authentication" for production deployments
 
 ---
 
@@ -598,13 +622,18 @@ REDDIT_CLIENT_SECRET=your_secret_here
 
 **Infrastructure:**
 - ✅ Local development: Fully functional
-- ❌ Railway (backend): Not deployed yet
-- ❌ Vercel (frontend): Not deployed yet
+- ✅ Railway (backend): **DEPLOYED** - https://backend-production-a7f4.up.railway.app
+- ✅ Vercel (frontend): **DEPLOYED** - https://zurychhh-alpha-machine.vercel.app
 
-**Services:**
+**Production Services (Railway):**
+- ✅ PostgreSQL: Running and connected
+- ✅ Redis: Running and connected
+- ✅ FastAPI Backend: Auto-deploy from GitHub
+
+**Local Services (Docker):**
 - ✅ PostgreSQL: Running locally (Docker, port 5432)
 - ✅ Redis: Running locally (Docker, port 6379)
-- ❌ Celery: Not configured yet (Milestone 6)
+- ✅ Celery: Configured (tasks ready)
 
 ---
 
