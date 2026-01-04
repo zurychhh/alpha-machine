@@ -73,10 +73,16 @@ class BacktestEngine:
             f"Period: {start_date} to {end_date} | Capital: ${starting_capital:,.2f}"
         )
 
+        # Parse date strings to datetime for proper SQL comparison
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d").replace(
+            hour=23, minute=59, second=59
+        )
+
         # 1. Fetch signals from date range
         query = db.query(Signal).filter(
-            Signal.timestamp >= start_date,
-            Signal.timestamp <= end_date,
+            Signal.timestamp >= start_dt,
+            Signal.timestamp <= end_dt,
             Signal.signal_type == "BUY",
         )
 
