@@ -42,7 +42,8 @@ def seed_watchlist():
                 ticker=stock["ticker"],
                 company_name=stock["company_name"],
                 sector=stock["sector"],
-                is_active=True
+                tier=1,
+                active=True
             )
             db.add(watchlist_item)
 
