@@ -1,9 +1,9 @@
 # ALPHA MACHINE - PROJECT STATUS
 ## Live Development State
 
-**Last Updated:** 2026-01-04 21:05 CET
+**Last Updated:** 2026-01-05 12:30 CET
 **Updated By:** Claude Code
-**Session:** 11 - Backtest Engine Implementation
+**Session:** 12 - Telegram Bot Integration
 
 ---
 
@@ -38,6 +38,12 @@
   - Portfolio Allocator (CORE_FOCUS, BALANCED, DIVERSIFIED)
   - Full P&L simulation with stop-loss/take-profit
   - API: `/api/v1/backtest/*`
+- ✅ **Telegram Bot IMPLEMENTED** (Session 12)
+  - Bot: @alpha_machine_roc_bot
+  - Commands: /signals, /watchlist, /status, /help
+  - Real-time alerts for ≥75% confidence signals
+  - Daily summary at 8:30 AM EST
+  - API: `/api/v1/telegram/*`
 
 ### 💼 Business Value Summary
 
@@ -346,9 +352,9 @@ frontend/
 
 **⚠️ READ THIS FIRST when resuming work**
 
-### Exact Current State (2026-01-04 21:10 CET)
+### Exact Current State (2026-01-05 12:30 CET)
 
-**🎉 ALL 6 MILESTONES COMPLETE + BACKTEST ENGINE IMPLEMENTED**
+**🎉 ALL 6 MILESTONES COMPLETE + BACKTEST ENGINE + TELEGRAM BOT**
 
 **Production URLs:**
 - 🌐 Frontend: https://zurychhh-alpha-machine.vercel.app
@@ -369,6 +375,7 @@ frontend/
 | Watchlist | ✅ Seeded | 10 AI/tech stocks |
 | Test Suite | ✅ 470 tests | 100% pass rate, 79% coverage |
 | Auto-Deploy | ✅ Configured | Push to main → auto deploy |
+| Telegram Bot | ✅ Deployed | @alpha_machine_roc_bot |
 
 **Latest Signals (Full 4-Agent Analysis):**
 | Stock | Signal | Confidence |
@@ -390,14 +397,16 @@ frontend/
 **Next Steps (Post-MVP):**
 1. [x] Set up Celery Beat for automated signal generation (9:00 EST daily) ✅
 2. [x] Add Telegram notifications for strong signals (confidence ≥75%) ✅
-3. [ ] Paper trading validation (1-2 weeks)
-4. [ ] Performance tracking dashboard
-5. [ ] Add more stocks to watchlist
+3. [x] Implement Backtest Engine with Portfolio Optimization ✅
+4. [ ] Paper trading validation (1-2 weeks)
+5. [ ] Performance tracking dashboard
+6. [ ] Add more stocks to watchlist
 
 **Telegram Bot (@alpha_machine_roc_bot):**
-- ✅ Commands: /status, /signals, /watchlist, /help
+- ✅ Commands: /start, /status, /signals, /watchlist, /help
 - ✅ Real-time alerts for signals with ≥75% confidence
 - ✅ Daily summary at 8:30 AM EST
+- ✅ Webhook: https://backend-production-a7f4.up.railway.app/api/v1/telegram/webhook
 
 **To Resume Development:**
 ```bash
@@ -777,6 +786,77 @@ None - all clear ✅
 ---
 
 ## 🔄 SESSION LOG
+
+### Session 12 - 2026-01-05 (Telegram Bot Integration)
+**Duration:** ~60 minutes
+**Focus:** Implement Telegram notifications for trading signals
+
+**Key Deliverables:**
+- ✅ `app/services/telegram_bot.py` - Telegram bot service with httpx API calls
+- ✅ `app/api/endpoints/telegram.py` - Webhook endpoint (6 routes)
+- ✅ `app/tasks/telegram_tasks.py` - Celery scheduled tasks
+- ✅ Updated `app/tasks/celery_app.py` - Added telegram schedules
+- ✅ Updated `app/core/config.py` - Added TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+- ✅ Updated `requirements.txt` - Added python-telegram-bot>=20.0
+- ✅ Deployed to Railway (both backend and worker services)
+- ✅ All bot commands working: /start, /signals, /watchlist, /status, /help
+
+**New Features:**
+1. **Bot Commands:**
+   - `/start` - Welcome message with feature overview
+   - `/signals` - Latest 5 signals with confidence levels
+   - `/watchlist` - Current watchlist with tier information
+   - `/status` - System status (agents, signals, database)
+   - `/help` - Command list
+
+2. **Automated Notifications (Celery Beat):**
+   - Daily summary at 8:30 AM EST
+   - High-confidence signal check every 15 minutes
+
+3. **API Endpoints:**
+   - POST `/api/v1/telegram/webhook` - Receive Telegram updates
+   - POST `/api/v1/telegram/send-alert` - Manual signal alert
+   - POST `/api/v1/telegram/send-summary` - Manual daily summary
+   - GET `/api/v1/telegram/status` - Check bot configuration
+   - POST `/api/v1/telegram/setup-webhook` - Register webhook with Telegram
+
+**Files Created:**
+- `backend/app/services/telegram_bot.py` (~200 lines)
+- `backend/app/api/endpoints/telegram.py` (~200 lines)
+- `backend/app/tasks/telegram_tasks.py` (~100 lines)
+
+**Files Modified:**
+- `backend/app/core/config.py` - Added Telegram settings
+- `backend/app/tasks/celery_app.py` - Added Telegram schedules
+- `backend/app/api/endpoints/__init__.py` - Added telegram router
+- `backend/app/services/__init__.py` - Added TelegramBotService export
+- `backend/app/main.py` - Registered telegram router
+- `backend/requirements.txt` - Added python-telegram-bot
+
+**Issues Resolved:**
+- ❌ Initial implementation with python-telegram-bot handlers didn't respond to webhooks
+  - ✅ Solution: Rewrote to use direct httpx API calls instead
+- ❌ `/watchlist` command error (`stock.priority` attribute not found)
+  - ✅ Solution: Changed to `stock.tier` (correct model attribute)
+- ❌ Could not get chat_id from webhook
+  - ✅ Solution: Temporarily deleted webhook, polled getUpdates API
+
+**Environment Variables Added (Railway):**
+- `TELEGRAM_BOT_TOKEN` - Bot token from @BotFather
+- `TELEGRAM_CHAT_ID` - User's chat ID (7553758737)
+
+**Git Commits:**
+- feat: Add Telegram bot notifications
+- fix: Use stock.tier instead of priority
+- fix: Rewrite telegram bot to use direct httpx API calls
+
+**Production Deployment:**
+- ✅ Backend auto-deployed with Telegram endpoints
+- ✅ Worker service updated with Telegram task schedules
+- ✅ Webhook registered with Telegram API
+- ✅ All commands tested and working
+
+---
 
 ### Session 11 - 2026-01-04 (Backtest Engine Implementation)
 **Duration:** ~45 minutes

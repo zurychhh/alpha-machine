@@ -38,7 +38,8 @@
 12. [Railway + Vercel Deployment](#decision-12-railway-vercel-deployment)
 13. [Celery Beat Worker Deployment](#decision-13-celery-beat-worker-deployment-strategy)
 14. [Backtest Engine Architecture](#decision-14-backtest-engine-architecture)
-15. [Example Decision Template](#decision-template)
+15. [Telegram Bot Architecture](#decision-15-telegram-bot-architecture)
+16. [Example Decision Template](#decision-template)
 
 ---
 
@@ -945,6 +946,108 @@ GET  /api/v1/backtest/history          - Past backtests
 - **Strategy Optimization:** Compare CORE_FOCUS vs BALANCED vs DIVERSIFIED
 - **Agent Tuning:** Identify which agents contribute most to profitable signals
 - **Confidence Building:** Quantitative evidence before live trading
+
+---
+
+## Decision 15: Telegram Bot Architecture
+
+**Date:** 2026-01-05
+**Status:** ✅ Accepted
+**Deciders:** Claude Code
+**Tags:** `notifications`, `telegram`, `automation`, `post-mvp`
+
+### Context
+
+Need real-time notifications for trading signals. Requirements:
+- Real-time alerts when signals with confidence ≥75% are generated
+- Daily summary at 8:30 AM EST
+- User commands: /signals, /watchlist, /status, /help
+- Webhook-based integration (not polling)
+
+### Options Considered
+
+#### Option A: python-telegram-bot with CommandHandlers
+**Pros:**
+- Built-in command routing
+- High-level abstractions
+- Well-documented
+
+**Cons:**
+- Application/CommandHandler pattern requires running bot loop
+- Conflicts with webhook-based FastAPI integration
+- Complex async context management
+
+#### Option B: Direct httpx API Calls (Chosen ✅)
+**Pros:**
+- Simple, direct control
+- Works perfectly with FastAPI webhooks
+- No complex bot lifecycle management
+- Easy to debug and test
+
+**Cons:**
+- Manual command parsing needed
+- No automatic command registration with BotFather
+
+### Decision
+
+**Chose: Direct httpx API Calls (Option B)**
+
+**Rationale:**
+1. Webhooks require stateless request handling - direct API calls fit naturally
+2. FastAPI endpoint receives update, processes command, sends response via API
+3. No bot "application" loop to manage
+4. Simpler error handling and logging
+5. Initial implementation with python-telegram-bot handlers failed to respond to webhooks
+
+### Implementation Details
+
+**Architecture:**
+```
+Telegram → Webhook → FastAPI → TelegramBotService → httpx → Telegram API
+                         ↓
+                    SQLAlchemy (signals, watchlist)
+```
+
+**Files Created:**
+- `backend/app/services/telegram_bot.py` - Main bot service
+- `backend/app/api/endpoints/telegram.py` - Webhook endpoint
+- `backend/app/tasks/telegram_tasks.py` - Celery scheduled tasks
+
+**Bot Commands:**
+| Command | Description |
+|---------|-------------|
+| /start | Welcome message |
+| /signals | Latest 5 signals with confidence |
+| /watchlist | Current watchlist with tiers |
+| /status | System status (agents, signals, DB) |
+| /help | Command list |
+
+**Scheduled Tasks (Celery Beat):**
+- `telegram-daily-summary` - 8:30 AM EST daily summary
+- `telegram-high-confidence-check` - Every 15 min, alert on ≥75% signals
+
+**Environment Variables:**
+- `TELEGRAM_BOT_TOKEN` - Bot token from @BotFather
+- `TELEGRAM_CHAT_ID` - Target chat for alerts
+
+### Consequences
+
+**Positive:**
+- Real-time notifications without manual checks
+- Commands work reliably via webhook
+- Simple, maintainable architecture
+- Easy to extend with new commands
+
+**Negative:**
+- Commands not auto-registered with BotFather (must set manually)
+- No inline keyboards or complex UI (not needed for MVP)
+
+**Technical Debt:** None
+
+**Lessons Learned:**
+1. python-telegram-bot's Application pattern doesn't fit webhook model
+2. Direct API calls via httpx are simpler for webhook integrations
+3. Getting chat_id requires temporary webhook deletion + getUpdates polling
 
 ---
 
