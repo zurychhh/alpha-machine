@@ -22,6 +22,7 @@ celery_app = Celery(
     include=[
         "app.tasks.data_tasks",
         "app.tasks.signal_tasks",
+        "app.tasks.telegram_tasks",
     ],
 )
 
@@ -78,12 +79,27 @@ celery_app.conf.update(
             "schedule": crontab(hour=16, minute=30),
             "options": {"queue": "signals"},
         },
+
+        # Telegram: Daily signal summary at 8:30 AM EST
+        "telegram-daily-summary": {
+            "task": "app.tasks.telegram_tasks.send_daily_signal_summary_task",
+            "schedule": crontab(hour=8, minute=30),
+            "options": {"queue": "notifications"},
+        },
+
+        # Telegram: Check for high-confidence signals every 15 minutes
+        "telegram-high-confidence-check": {
+            "task": "app.tasks.telegram_tasks.check_and_alert_high_confidence",
+            "schedule": 900.0,  # Every 15 minutes
+            "options": {"queue": "notifications"},
+        },
     },
 
     # Task routing
     task_routes={
         "app.tasks.data_tasks.*": {"queue": "data"},
         "app.tasks.signal_tasks.*": {"queue": "signals"},
+        "app.tasks.telegram_tasks.*": {"queue": "notifications"},
     },
 
     # Default queue

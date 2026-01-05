@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: str = ""
     GOOGLE_AI_API_KEY: str = ""
 
+    # Telegram Bot
+    TELEGRAM_BOT_TOKEN: str = ""
+    TELEGRAM_CHAT_ID: str = ""
+
     # Trading Parameters
     STARTING_CAPITAL: float = 50000.0
     MAX_POSITION_SIZE_PCT: float = 0.10  # 10% max per stock

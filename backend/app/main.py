@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.api.endpoints import health, market, sentiment, data, signals, backtest
+from app.api.endpoints import health, market, sentiment, data, signals, backtest, telegram
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -25,6 +25,7 @@ app.include_router(sentiment.router, prefix=f"{settings.API_V1_STR}/sentiment", 
 app.include_router(data.router, prefix=f"{settings.API_V1_STR}/data", tags=["data"])
 app.include_router(signals.router, prefix=f"{settings.API_V1_STR}/signals", tags=["signals"])
 app.include_router(backtest.router, prefix=f"{settings.API_V1_STR}/backtest", tags=["backtest"])
+app.include_router(telegram.router, prefix=f"{settings.API_V1_STR}/telegram", tags=["telegram"])
 
 
 @app.get("/")

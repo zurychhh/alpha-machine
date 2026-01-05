@@ -14,8 +14,43 @@ from app.models.signal import Signal
 from app.models.agent_analysis import AgentAnalysis
 from app.agents.signal_generator import ConsensusSignal, PositionSize
 from app.agents.base_agent import AgentSignal, SignalType
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+def _trigger_telegram_alert(signal: Signal) -> bool:
+    """
+    Trigger Telegram alert for high-confidence signals.
+
+    Only alerts for BUY/SELL signals with confidence >= 4 (80%).
+    """
+    if not settings.TELEGRAM_BOT_TOKEN or not settings.TELEGRAM_CHAT_ID:
+        return False
+
+    # Only alert for high-confidence BUY/SELL signals
+    if signal.confidence < 4 or signal.signal_type == "HOLD":
+        return False
+
+    try:
+        from app.tasks.telegram_tasks import send_signal_alert_task
+
+        signal_data = {
+            "ticker": signal.ticker,
+            "signal_type": signal.signal_type,
+            "confidence": signal.confidence / 5.0,  # Convert 1-5 to 0-1
+            "entry_price": float(signal.entry_price) if signal.entry_price else None,
+            "target_price": float(signal.target_price) if signal.target_price else None,
+            "stop_loss": float(signal.stop_loss) if signal.stop_loss else None,
+        }
+
+        # Trigger async task
+        send_signal_alert_task.delay(signal_data)
+        logger.info(f"Telegram alert triggered for {signal.ticker}")
+        return True
+    except Exception as e:
+        logger.warning(f"Failed to trigger Telegram alert: {e}")
+        return False
 
 
 class SignalService:
@@ -109,6 +144,9 @@ class SignalService:
             f"Saved signal {signal.id}: {signal.ticker} {signal.signal_type} "
             f"@ ${entry_price} (confidence: {signal.confidence})"
         )
+
+        # Trigger Telegram alert for high-confidence signals
+        _trigger_telegram_alert(signal)
 
         return signal
 
