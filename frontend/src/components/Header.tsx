@@ -42,6 +42,12 @@ function Header() {
               Dashboard
             </Link>
             <Link
+              to="/paper-trading"
+              className={`inline-flex items-center px-1 pt-1 text-sm font-medium ${isActive('/paper-trading')}`}
+            >
+              Paper Trading
+            </Link>
+            <Link
               to="/portfolio"
               className={`inline-flex items-center px-1 pt-1 text-sm font-medium ${isActive('/portfolio')}`}
             >

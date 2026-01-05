@@ -6,6 +6,7 @@ import type {
   AgentInfo,
   GenerateSignalRequest,
   GenerateSignalResponse,
+  PaperTradingData,
 } from '../types'
 
 const API_BASE = '/api/v1'
@@ -63,6 +64,12 @@ class ApiClient {
   async getSignalStatistics(days?: number): Promise<SignalStatistics> {
     const query = days ? `?days=${days}` : ''
     return this.request<SignalStatistics>(`/signals/stats${query}`)
+  }
+
+  // Paper Trading
+  async getPaperTradingData(days?: number): Promise<PaperTradingData> {
+    const query = days ? `?days=${days}` : ''
+    return this.request<PaperTradingData>(`/signals/paper-trading${query}`)
   }
 
   async getAgents(): Promise<AgentInfo[]> {

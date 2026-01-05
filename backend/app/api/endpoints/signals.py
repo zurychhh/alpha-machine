@@ -271,6 +271,150 @@ async def get_signal_statistics(
     return signal_service.get_statistics(days=days)
 
 
+@router.get("/paper-trading")
+async def get_paper_trading_data(
+    days: int = Query(default=14, ge=1, le=30, description="Days to analyze"),
+    db: Session = Depends(get_db),
+):
+    """
+    Paper Trading Dashboard - 14-Day Validation Interface
+
+    Returns signals with real-time paper trading status:
+    - WIN: Current price >= target price
+    - LOSS: Current price <= stop loss
+    - ACTIVE: Still in play (between stop and target)
+
+    Groups signals by day for timeline view.
+    Calculates aggregate metrics (win rate, simulated P&L).
+    """
+    from datetime import datetime, timedelta
+    from collections import defaultdict
+
+    signal_service = get_signal_service(db)
+
+    # Get all signals from the period
+    signals = signal_service.get_signals(days=days, limit=500)
+
+    # Filter to BUY signals only (that's what we track for paper trading)
+    buy_signals = [s for s in signals if s.signal_type == "BUY"]
+
+    # Get current prices for all tickers
+    tickers = list(set(s.ticker for s in buy_signals))
+    current_prices = {}
+    for ticker in tickers:
+        try:
+            quote = market_data_service.get_quote(ticker)
+            if quote and quote.get("current_price"):
+                current_prices[ticker] = quote["current_price"]
+        except Exception as e:
+            logger.warning(f"Failed to get price for {ticker}: {e}")
+
+    # Process each signal
+    processed_signals = []
+    total_pnl = 0.0
+    wins = 0
+    losses = 0
+    active = 0
+
+    for signal in buy_signals:
+        current_price = current_prices.get(signal.ticker)
+        entry_price = float(signal.entry_price) if signal.entry_price else 0
+        target_price = float(signal.target_price) if signal.target_price else 0
+        stop_loss = float(signal.stop_loss) if signal.stop_loss else 0
+
+        # Determine paper trading status
+        if current_price is None:
+            paper_status = "UNKNOWN"
+            paper_pnl = 0
+            paper_pnl_percent = 0
+        elif entry_price <= 0:
+            paper_status = "UNKNOWN"
+            paper_pnl = 0
+            paper_pnl_percent = 0
+        elif current_price >= target_price and target_price > 0:
+            paper_status = "WIN"
+            paper_pnl = (target_price - entry_price) * (signal.position_size or 0)
+            paper_pnl_percent = ((target_price - entry_price) / entry_price) * 100
+            wins += 1
+        elif current_price <= stop_loss and stop_loss > 0:
+            paper_status = "LOSS"
+            paper_pnl = (stop_loss - entry_price) * (signal.position_size or 0)
+            paper_pnl_percent = ((stop_loss - entry_price) / entry_price) * 100
+            losses += 1
+        else:
+            paper_status = "ACTIVE"
+            paper_pnl = (current_price - entry_price) * (signal.position_size or 0)
+            paper_pnl_percent = ((current_price - entry_price) / entry_price) * 100 if entry_price > 0 else 0
+            active += 1
+
+        total_pnl += paper_pnl
+
+        processed_signals.append({
+            "id": signal.id,
+            "ticker": signal.ticker,
+            "signal_type": signal.signal_type,
+            "confidence": signal.confidence,
+            "entry_price": entry_price,
+            "current_price": current_price,
+            "target_price": target_price,
+            "stop_loss": stop_loss,
+            "position_size": signal.position_size,
+            "paper_status": paper_status,
+            "paper_pnl": round(paper_pnl, 2),
+            "paper_pnl_percent": round(paper_pnl_percent, 2),
+            "timestamp": signal.timestamp.isoformat() if signal.timestamp else None,
+            "date": signal.timestamp.strftime("%Y-%m-%d") if signal.timestamp else None,
+        })
+
+    # Group by day
+    by_day = defaultdict(list)
+    for sig in processed_signals:
+        if sig["date"]:
+            by_day[sig["date"]].append(sig)
+
+    # Sort days (most recent first)
+    sorted_days = sorted(by_day.keys(), reverse=True)
+    timeline = [
+        {
+            "date": day,
+            "signals": by_day[day],
+            "count": len(by_day[day]),
+            "wins": len([s for s in by_day[day] if s["paper_status"] == "WIN"]),
+            "losses": len([s for s in by_day[day] if s["paper_status"] == "LOSS"]),
+            "active": len([s for s in by_day[day] if s["paper_status"] == "ACTIVE"]),
+            "day_pnl": round(sum(s["paper_pnl"] for s in by_day[day]), 2),
+        }
+        for day in sorted_days
+    ]
+
+    # Calculate aggregate metrics
+    total_closed = wins + losses
+    win_rate = (wins / total_closed * 100) if total_closed > 0 else None
+
+    # Calculate days remaining in 14-day validation
+    start_date = datetime(2026, 1, 5)  # Paper trading start date
+    end_date = start_date + timedelta(days=14)
+    days_remaining = max(0, (end_date - datetime.utcnow()).days)
+
+    return {
+        "period_days": days,
+        "validation_start": "2026-01-05",
+        "validation_end": "2026-01-19",
+        "days_remaining": days_remaining,
+        "summary": {
+            "total_signals": len(processed_signals),
+            "wins": wins,
+            "losses": losses,
+            "active": active,
+            "win_rate": round(win_rate, 1) if win_rate is not None else None,
+            "total_pnl": round(total_pnl, 2),
+            "avg_pnl_per_signal": round(total_pnl / len(processed_signals), 2) if processed_signals else 0,
+        },
+        "timeline": timeline,
+        "signals": processed_signals,
+    }
+
+
 @router.get("/agents")
 async def list_agents():
     """

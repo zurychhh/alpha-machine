@@ -83,3 +83,52 @@ export interface ApiError {
 
 export type SignalType = 'BUY' | 'SELL' | 'HOLD'
 export type SignalStatus = 'PENDING' | 'APPROVED' | 'EXECUTED' | 'CLOSED'
+export type PaperStatus = 'WIN' | 'LOSS' | 'ACTIVE' | 'UNKNOWN'
+
+// Paper Trading Types
+export interface PaperSignal {
+  id: number
+  ticker: string
+  signal_type: SignalType
+  confidence: number
+  entry_price: number
+  current_price: number | null
+  target_price: number
+  stop_loss: number
+  position_size: number
+  paper_status: PaperStatus
+  paper_pnl: number
+  paper_pnl_percent: number
+  timestamp: string
+  date: string
+}
+
+export interface PaperDay {
+  date: string
+  signals: PaperSignal[]
+  count: number
+  wins: number
+  losses: number
+  active: number
+  day_pnl: number
+}
+
+export interface PaperTradingSummary {
+  total_signals: number
+  wins: number
+  losses: number
+  active: number
+  win_rate: number | null
+  total_pnl: number
+  avg_pnl_per_signal: number
+}
+
+export interface PaperTradingData {
+  period_days: number
+  validation_start: string
+  validation_end: string
+  days_remaining: number
+  summary: PaperTradingSummary
+  timeline: PaperDay[]
+  signals: PaperSignal[]
+}
