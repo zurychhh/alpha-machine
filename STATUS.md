@@ -388,11 +388,16 @@ frontend/
 - ✅ GrowthAgent Anthropic - RESOLVED (credits added to account)
 
 **Next Steps (Post-MVP):**
-1. [ ] Set up Celery Beat for automated signal generation (9:00 EST daily)
-2. [ ] Add Telegram notifications for strong signals (confidence ≥75%)
+1. [x] Set up Celery Beat for automated signal generation (9:00 EST daily) ✅
+2. [x] Add Telegram notifications for strong signals (confidence ≥75%) ✅
 3. [ ] Paper trading validation (1-2 weeks)
 4. [ ] Performance tracking dashboard
 5. [ ] Add more stocks to watchlist
+
+**Telegram Bot (@alpha_machine_roc_bot):**
+- ✅ Commands: /status, /signals, /watchlist, /help
+- ✅ Real-time alerts for signals with ≥75% confidence
+- ✅ Daily summary at 8:30 AM EST
 
 **To Resume Development:**
 ```bash
