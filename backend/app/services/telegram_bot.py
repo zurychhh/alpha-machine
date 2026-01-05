@@ -395,7 +395,7 @@ Your AI-powered stock trading assistant.
 
             lines = ["📋 <b>Watchlist:</b>\n"]
             for stock in stocks:
-                tier_emoji = "⭐" if stock.priority <= 2 else ""
+                tier_emoji = "⭐" if stock.tier and stock.tier <= 2 else ""
                 lines.append(f"  • <b>{stock.ticker}</b> {tier_emoji}")
 
             lines.append(f"\n<i>Total: {len(stocks)} stocks</i>")
