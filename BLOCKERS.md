@@ -13,7 +13,91 @@
 
 None - all clear ✅
 
-**Last Updated:** 2025-12-20
+**Last Updated:** 2026-01-04
+
+---
+
+## 🟢 RESOLVED BLOCKERS (Session 11 - Backtest Engine)
+
+### Blocker #3: SQLAlchemy Mock Chain TypeError
+
+**Date Opened:** 2026-01-04
+**Date Resolved:** 2026-01-04
+**Severity:** 🟡 Medium
+**Status:** 🟢 Resolved
+
+**Description:**
+Unit tests for BacktestEngine failed with `TypeError: object of type 'Mock' has no len()` when testing SQLAlchemy query chains.
+
+**Error Message:**
+```
+TypeError: object of type 'Mock' has no len()
+```
+
+**Impact:**
+- Blocked test execution for backtesting module
+- Could not validate BacktestEngine logic
+
+**Root Cause:**
+Standard `Mock()` doesn't implement magic methods like `__len__`. SQLAlchemy's `.all()` returns a list, which needs length support.
+
+**Solution:**
+```python
+# Przed (błąd)
+mock_db = Mock()
+
+# Po (fix)
+mock_db = MagicMock()  # MagicMock implements __len__, __iter__, etc.
+```
+
+**Code Changes:**
+- `tests/unit/test_backtesting.py`: Changed all `Mock()` to `MagicMock()` for db mocks
+
+**Time Lost:** ~10 minutes
+**Lesson Learned:** Always use `MagicMock` when mocking objects that need magic method support
+
+---
+
+### Blocker #4: PostgreSQL Timestamp vs String Comparison
+
+**Date Opened:** 2026-01-04
+**Date Resolved:** 2026-01-04
+**Severity:** 🔴 High
+**Status:** 🟢 Resolved
+
+**Description:**
+Backtest API endpoint returned `500 Internal Server Error` on production. SQLAlchemy query failed when comparing timestamp column with string dates.
+
+**Error Message:**
+```
+ProgrammingError: operator does not exist: timestamp without time zone >= character varying
+HINT: No operator matches the given name and argument types.
+```
+
+**Impact:**
+- Blocked entire Backtest Engine on production
+- API returned 500 instead of results
+
+**Root Cause:**
+PostgreSQL cannot compare `timestamp` column directly with `varchar` string. SQLAlchemy was passing date strings like `"2026-01-01"` directly to the query filter.
+
+**Solution:**
+```python
+# Przed (błąd)
+Signal.timestamp >= start_date  # start_date = "2026-01-01" (string)
+
+# Po (fix)
+start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+end_dt = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+Signal.timestamp >= start_dt  # datetime object
+Signal.timestamp <= end_dt
+```
+
+**Code Changes:**
+- `backend/app/services/backtesting.py`: Added date string to datetime conversion
+
+**Time Lost:** ~15 minutes
+**Lesson Learned:** Always convert string dates to datetime objects before SQLAlchemy timestamp comparisons
 
 ---
 
@@ -327,27 +411,28 @@ Manually switching API keys when limit hit.
 ## 📊 BLOCKER STATISTICS
 
 **Summary:**
-- Total blockers encountered: 2
-- Average resolution time: 10 minutes
+- Total blockers encountered: 4
+- Average resolution time: ~12 minutes
 - Currently open: 0
-- Resolved: 2
+- Resolved: 4
 
 **By Severity:**
-- 🔴 High: 2 resolved, 0 open
-- 🟡 Medium: 0 resolved, 0 open
+- 🔴 High: 3 resolved, 0 open
+- 🟡 Medium: 1 resolved, 0 open
 - 🟢 Low: 0 resolved, 0 open
 
 **By Category:**
 - API/External: 0
-- Code/Logic: 0
+- Code/Logic: 2 (Session 11 - Mock + Timestamp)
 - Infrastructure: 0
-- Configuration/Dependencies: 2
+- Configuration/Dependencies: 2 (Milestone 1 - psycopg, pandas)
 
 **Top Time Wasters:**
 1. Python 3.13 package compatibility - 20 minutes total
-2. (None other yet)
+2. PostgreSQL timestamp comparison - 15 minutes
+3. SQLAlchemy mock configuration - 10 minutes
 
-**Last Updated:** 2025-12-20
+**Last Updated:** 2026-01-04
 
 ---
 
