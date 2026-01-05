@@ -3,7 +3,7 @@ Telegram Webhook Endpoint
 Handles incoming updates from Telegram Bot API.
 """
 
-from fastapi import APIRouter, Request, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Request, HTTPException
 from typing import Dict, Any
 import logging
 
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/webhook")
-async def telegram_webhook(request: Request, background_tasks: BackgroundTasks):
+async def telegram_webhook(request: Request):
     """
     Handle incoming Telegram webhook updates.
 
@@ -32,11 +32,11 @@ async def telegram_webhook(request: Request, background_tasks: BackgroundTasks):
         update_data = await request.json()
         logger.info(f"Received Telegram update: {update_data.get('update_id')}")
 
-        # Process webhook in background to respond quickly
+        # Process webhook directly (not in background)
         telegram_service = get_telegram_service()
-        background_tasks.add_task(telegram_service.process_webhook, update_data)
+        result = await telegram_service.process_webhook(update_data)
 
-        return {"ok": True}
+        return {"ok": True, "result": result}
 
     except Exception as e:
         logger.error(f"Error processing Telegram webhook: {e}")
