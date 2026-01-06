@@ -318,14 +318,20 @@ class SignalGenerator:
         return min(consensus_confidence, 1.0)
 
     def _score_to_signal(self, score: float) -> SignalType:
-        """Convert numeric score to signal type."""
-        if score >= 0.6:
+        """
+        Convert numeric score to signal type.
+
+        Thresholds adjusted for 14-day paper trading validation:
+        - More sensitive to generate actionable BUY/SELL signals
+        - Neutral zone reduced from ±0.2 to ±0.1
+        """
+        if score >= 0.5:
             return SignalType.STRONG_BUY
-        elif score >= 0.2:
+        elif score >= 0.1:
             return SignalType.BUY
-        elif score >= -0.2:
+        elif score >= -0.1:
             return SignalType.HOLD
-        elif score >= -0.6:
+        elif score >= -0.5:
             return SignalType.SELL
         else:
             return SignalType.STRONG_SELL
@@ -345,7 +351,7 @@ class SignalGenerator:
         - Strength of the signal
         """
         # No position for weak signals or low confidence
-        if score_strength < 0.2 or confidence < self.LOW_CONFIDENCE_THRESHOLD:
+        if score_strength < 0.1 or confidence < self.LOW_CONFIDENCE_THRESHOLD:
             return PositionSize.NONE
 
         # Large position: high confidence + high agreement + strong signal
