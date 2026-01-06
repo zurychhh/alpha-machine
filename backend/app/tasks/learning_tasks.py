@@ -404,6 +404,151 @@ def check_critical_biases_task() -> Dict[str, Any]:
 
 
 @shared_task(
+    name="app.tasks.learning_tasks.send_weekly_learning_summary_task",
+)
+def send_weekly_learning_summary_task() -> Dict[str, Any]:
+    """
+    Send weekly learning system summary via Telegram.
+
+    Runs every Sunday at 18:00 EST to provide:
+    1. Current agent weights with recent performance
+    2. Number of biases detected this week
+    3. Overall confidence level
+
+    Returns:
+        Dict with summary results
+    """
+    db = SessionLocal()
+    result = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "status": "pending",
+        "alert_sent": False,
+    }
+
+    try:
+        logger.info("Sending weekly learning summary")
+
+        learning_engine = LearningEngine(db)
+
+        # Get current weights with performance
+        weights = learning_engine.get_agent_weights()
+        weights_data = [
+            {
+                "agent_name": w.agent_name,
+                "weight": w.weight,
+                "win_rate_7d": w.win_rate_7d,
+                "win_rate_30d": w.win_rate_30d,
+            }
+            for w in weights
+        ]
+
+        # Run bias check
+        bias_report = learning_engine.meta_engine.detect_all_biases()
+        biases_count = len(bias_report.biases)
+
+        # Calculate confidence
+        confidence = bias_report.overall_confidence
+
+        # Send via new Telegram method
+        from app.services.telegram_bot import get_telegram_service
+
+        telegram_service = get_telegram_service()
+        sent = telegram_service.send_learning_summary_sync(
+            weights=weights_data,
+            biases_count=biases_count,
+            confidence=confidence,
+        )
+
+        result["status"] = "completed"
+        result["alert_sent"] = sent
+        result["weights_count"] = len(weights_data)
+        result["biases_count"] = biases_count
+        result["confidence"] = confidence
+
+        logger.info(f"Weekly learning summary sent: {sent}")
+
+    except Exception as e:
+        logger.error(f"Weekly learning summary failed: {e}")
+        result["status"] = "error"
+        result["error"] = str(e)
+
+    finally:
+        db.close()
+
+    return result
+
+
+@shared_task(
+    name="app.tasks.learning_tasks.send_learning_alerts_task",
+)
+def send_learning_alerts_task() -> Dict[str, Any]:
+    """
+    Check for significant learning events and send Telegram alerts.
+
+    Called periodically (every 6 hours) to:
+    1. Check for critical biases and send alerts
+    2. Detect regime shifts and notify
+
+    Returns:
+        Dict with alert results
+    """
+    db = SessionLocal()
+    result = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "status": "pending",
+        "alerts_sent": 0,
+    }
+
+    try:
+        logger.info("Checking for learning alerts")
+
+        learning_engine = LearningEngine(db)
+
+        from app.services.telegram_bot import get_telegram_service
+        telegram_service = get_telegram_service()
+
+        # Check biases
+        bias_report = learning_engine.meta_engine.detect_all_biases()
+
+        # Alert on critical biases (severity >= 0.7)
+        critical_biases = [
+            {
+                "type": b.bias_type.value,
+                "agent": b.agent_name,
+                "severity": b.severity,
+                "description": b.description,
+            }
+            for b in bias_report.biases
+            if b.severity >= 0.7
+        ]
+
+        if critical_biases:
+            sent = telegram_service.send_bias_alert_sync(critical_biases)
+            if sent:
+                result["alerts_sent"] += 1
+            result["biases_alerted"] = len(critical_biases)
+
+        # Check regime
+        regime = learning_engine.meta_engine.regime_detector.detect_regime()
+        result["current_regime"] = regime.regime_type.value
+
+        result["status"] = "completed"
+        logger.info(
+            f"Learning alerts check completed: {result['alerts_sent']} alerts sent"
+        )
+
+    except Exception as e:
+        logger.error(f"Learning alerts check failed: {e}")
+        result["status"] = "error"
+        result["error"] = str(e)
+
+    finally:
+        db.close()
+
+    return result
+
+
+@shared_task(
     name="app.tasks.learning_tasks.manual_weight_override_task",
 )
 def manual_weight_override_task(

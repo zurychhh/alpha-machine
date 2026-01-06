@@ -108,6 +108,20 @@ celery_app.conf.update(
             "schedule": crontab(hour="*/6", minute=30),  # Every 6 hours at :30
             "options": {"queue": "learning"},
         },
+
+        # Learning System: Weekly summary every Sunday at 18:00 EST
+        "weekly-learning-summary": {
+            "task": "app.tasks.learning_tasks.send_weekly_learning_summary_task",
+            "schedule": crontab(hour=18, minute=0, day_of_week=0),  # Sunday 6PM EST
+            "options": {"queue": "learning"},
+        },
+
+        # Learning System: Learning alerts check (uses new Telegram methods)
+        "send-learning-alerts": {
+            "task": "app.tasks.learning_tasks.send_learning_alerts_task",
+            "schedule": crontab(hour="*/6", minute=0),  # Every 6 hours at :00
+            "options": {"queue": "learning"},
+        },
     },
 
     # Task routing

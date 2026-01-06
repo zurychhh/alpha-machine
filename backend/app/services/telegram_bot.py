@@ -313,6 +313,10 @@ No signals generated today.
             return await self._handle_watchlist(chat_id)
         elif text.startswith("/status"):
             return await self._handle_status(chat_id)
+        elif text.startswith("/learning"):
+            return await self._handle_learning(chat_id)
+        elif text.startswith("/weights"):
+            return await self._handle_weights(chat_id)
         elif text.startswith("/help"):
             return await self._handle_help(chat_id)
 
@@ -331,6 +335,8 @@ Your AI-powered stock trading assistant.
 /signals - View recent trading signals
 /watchlist - View monitored stocks
 /status - Check system status
+/learning - Learning system status
+/weights - View agent weights
 /help - Show this help message
 
 <i>You'll receive real-time alerts for signals with ≥75% confidence.</i>"""
@@ -470,11 +476,16 @@ Your AI-powered stock trading assistant.
 /signals - View recent trading signals (last 24h)
 /watchlist - View monitored stocks
 /status - Check system status
+/learning - Learning system status &amp; biases
+/weights - View current agent weights
 /help - Show this help message
 
 <b>Automatic Notifications:</b>
 • Real-time alerts for signals with ≥75% confidence
 • Daily summary at 8:30 AM EST
+• Bias detection alerts
+• Weight change notifications
+• Market regime shift alerts
 
 <b>Signal Types:</b>
 🟢 BUY - Recommended to buy
@@ -499,6 +510,241 @@ Your AI-powered stock trading assistant.
             return confidence >= self.ALERT_CONFIDENCE_THRESHOLD
         else:
             return confidence >= 4
+
+    # =========================================================================
+    # Learning System Alerts
+    # =========================================================================
+
+    def send_bias_alert_sync(self, biases: List[Dict[str, Any]]) -> bool:
+        """Send alert for detected biases."""
+        if not biases:
+            return True
+
+        # Bias type emojis
+        bias_emojis = {
+            "OVERFITTING": "📈",
+            "RECENCY": "🕐",
+            "THRASHING": "🔄",
+            "REGIME_BLINDNESS": "🌫️",
+        }
+
+        lines = ["⚠️ <b>LEARNING SYSTEM - BIAS DETECTED</b>\n"]
+
+        for bias in biases:
+            emoji = bias_emojis.get(bias.get("type", ""), "⚠️")
+            severity = bias.get("severity", 0) * 100
+            agent = bias.get("agent", "System")
+            description = bias.get("description", "No description")
+
+            lines.append(f"{emoji} <b>{bias.get('type', 'UNKNOWN')}</b>")
+            lines.append(f"   Agent: {agent}")
+            lines.append(f"   Severity: {severity:.0f}%")
+            lines.append(f"   {description}\n")
+
+        lines.append(f"⏰ {datetime.now().strftime('%Y-%m-%d %H:%M EST')}")
+        lines.append("\n<i>Review at /learning dashboard</i>")
+
+        return self.send_message_sync("\n".join(lines))
+
+    def send_weight_change_alert_sync(
+        self,
+        changes: Dict[str, Dict[str, float]],
+    ) -> bool:
+        """Send alert for significant weight changes."""
+        if not changes:
+            return True
+
+        lines = ["🔧 <b>LEARNING SYSTEM - WEIGHT UPDATE</b>\n"]
+
+        for agent, change in changes.items():
+            old_weight = change.get("old", 1.0)
+            new_weight = change.get("new", 1.0)
+            diff = change.get("change", 0)
+            direction = "↑" if diff > 0 else "↓"
+
+            lines.append(
+                f"  • <b>{agent}</b>: {old_weight:.2f} → {new_weight:.2f} ({direction}{abs(diff):.2f})"
+            )
+
+        lines.append(f"\n⏰ {datetime.now().strftime('%Y-%m-%d %H:%M EST')}")
+
+        return self.send_message_sync("\n".join(lines))
+
+    def send_regime_shift_alert_sync(
+        self,
+        old_regime: str,
+        new_regime: str,
+        reason: str,
+    ) -> bool:
+        """Send alert for market regime shift."""
+        regime_emojis = {
+            "NORMAL": "✅",
+            "HIGH_VOLATILITY": "⚡",
+            "BEAR_MARKET": "🐻",
+            "DIVERGENCE": "↔️",
+        }
+
+        old_emoji = regime_emojis.get(old_regime, "❓")
+        new_emoji = regime_emojis.get(new_regime, "❓")
+
+        message = f"""🌍 <b>MARKET REGIME SHIFT DETECTED</b>
+
+{old_emoji} <b>From:</b> {old_regime}
+{new_emoji} <b>To:</b> {new_regime}
+
+📝 <b>Reason:</b> {reason}
+
+<i>Learning system will adjust agent weights accordingly.</i>
+
+⏰ {datetime.now().strftime('%Y-%m-%d %H:%M EST')}"""
+
+        return self.send_message_sync(message)
+
+    def send_learning_summary_sync(
+        self,
+        weights: List[Dict[str, Any]],
+        biases_count: int,
+        confidence: float,
+    ) -> bool:
+        """Send weekly learning system summary."""
+        lines = ["📚 <b>LEARNING SYSTEM WEEKLY SUMMARY</b>\n"]
+
+        # Current weights
+        lines.append("<b>Agent Weights:</b>")
+        for w in weights:
+            agent = w.get("agent_name", "Unknown")
+            weight = w.get("weight", 1.0)
+            win_rate = w.get("win_rate_30d")
+            wr_str = f"{win_rate:.1f}%" if win_rate else "N/A"
+            lines.append(f"  • <b>{agent}</b>: {weight:.2f} (WR: {wr_str})")
+
+        # Status
+        lines.append(f"\n<b>System Status:</b>")
+        lines.append(f"  • Biases detected: {biases_count}")
+        lines.append(f"  • System confidence: {confidence * 100:.0f}%")
+
+        lines.append(f"\n⏰ {datetime.now().strftime('%Y-%m-%d %H:%M EST')}")
+
+        return self.send_message_sync("\n".join(lines))
+
+    async def _handle_learning(self, chat_id: int) -> str:
+        """Handle /learning command - show learning system status."""
+        from app.core.database import SessionLocal
+        from app.services.learning_engine import LearningEngine
+        from app.services.meta_learning_engine import MetaLearningEngine
+
+        try:
+            db = SessionLocal()
+            learning_engine = LearningEngine(db)
+            meta_engine = MetaLearningEngine(db)
+
+            # Get current weights
+            weights = learning_engine.get_current_weights()
+            bias_report = meta_engine.detect_all_biases()
+
+            db.close()
+
+            lines = ["📚 <b>Learning System Status</b>\n"]
+
+            # Weights
+            lines.append("<b>Agent Weights:</b>")
+            for agent, weight in weights.items():
+                lines.append(f"  • <b>{agent}</b>: {weight:.2f}")
+
+            # Biases
+            if bias_report.biases:
+                lines.append(f"\n⚠️ <b>Active Biases:</b> {len(bias_report.biases)}")
+                for bias in bias_report.biases[:3]:
+                    lines.append(f"  • {bias.bias_type.value}: {bias.description[:40]}...")
+            else:
+                lines.append("\n✅ No biases detected")
+
+            lines.append(f"\n📊 <b>Confidence:</b> {bias_report.overall_confidence * 100:.0f}%")
+            lines.append(f"\n⏰ {datetime.now().strftime('%Y-%m-%d %H:%M EST')}")
+
+            await self.send_message("\n".join(lines), chat_id=str(chat_id))
+            return "learning_sent"
+
+        except Exception as e:
+            self.logger.error(f"Error in /learning: {e}")
+            await self.send_message(
+                "❌ Error fetching learning status. Please try again.",
+                chat_id=str(chat_id),
+            )
+            return "learning_error"
+
+    async def _handle_weights(self, chat_id: int) -> str:
+        """Handle /weights command - show current agent weights."""
+        from app.core.database import SessionLocal
+        from app.models.agent_weights_history import AgentWeightsHistory
+        from sqlalchemy import func
+
+        try:
+            db = SessionLocal()
+
+            # Get latest weight for each agent
+            subquery = (
+                db.query(
+                    AgentWeightsHistory.agent_name,
+                    func.max(AgentWeightsHistory.date).label("max_date")
+                )
+                .group_by(AgentWeightsHistory.agent_name)
+                .subquery()
+            )
+
+            weights = (
+                db.query(AgentWeightsHistory)
+                .join(
+                    subquery,
+                    (AgentWeightsHistory.agent_name == subquery.c.agent_name) &
+                    (AgentWeightsHistory.date == subquery.c.max_date)
+                )
+                .all()
+            )
+
+            db.close()
+
+            if not weights:
+                await self.send_message(
+                    "📊 No weight data yet. Run optimization to initialize.",
+                    chat_id=str(chat_id),
+                )
+                return "weights_empty"
+
+            lines = ["📊 <b>Agent Weights</b>\n"]
+            for w in weights:
+                win_7d = f"{float(w.win_rate_7d):.1f}%" if w.win_rate_7d else "-"
+                win_30d = f"{float(w.win_rate_30d):.1f}%" if w.win_rate_30d else "-"
+                trades = w.trades_count_7d or 0
+
+                # Weight indicator
+                weight = float(w.weight)
+                if weight >= 1.5:
+                    indicator = "🔥"
+                elif weight >= 1.2:
+                    indicator = "⬆️"
+                elif weight <= 0.5:
+                    indicator = "⬇️"
+                else:
+                    indicator = "➡️"
+
+                lines.append(f"{indicator} <b>{w.agent_name}</b>")
+                lines.append(f"   Weight: <b>{weight:.2f}</b>")
+                lines.append(f"   WR 7d/30d: {win_7d} / {win_30d}")
+                lines.append(f"   Trades (7d): {trades}\n")
+
+            lines.append(f"⏰ {datetime.now().strftime('%Y-%m-%d %H:%M EST')}")
+
+            await self.send_message("\n".join(lines), chat_id=str(chat_id))
+            return "weights_sent"
+
+        except Exception as e:
+            self.logger.error(f"Error in /weights: {e}")
+            await self.send_message(
+                "❌ Error fetching weights. Please try again.",
+                chat_id=str(chat_id),
+            )
+            return "weights_error"
 
 
 # Singleton instance
