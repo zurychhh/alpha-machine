@@ -51,6 +51,13 @@
   - Simulated P&L calculation
   - Route: `/paper-trading`
   - API: `/api/v1/signals/paper-trading`
+- ✅ **Self-Learning System IMPLEMENTED** (Session 13 - Phase 1)
+  - MetaLearningEngine with 4 bias detectors
+  - LearningEngine with weight optimization
+  - RegimeDetector for market classification
+  - Celery task for daily optimization (00:00 EST)
+  - 12 API endpoints: `/api/v1/learning/*`
+  - Ready for Phase 2 (Dashboard)
 
 ### 💼 Business Value Summary
 
@@ -359,9 +366,9 @@ frontend/
 
 **⚠️ READ THIS FIRST when resuming work**
 
-### Exact Current State (2026-01-06 20:00 CET)
+### Exact Current State (2026-01-06 21:00 CET)
 
-**🎉 ALL 6 MILESTONES COMPLETE + BACKTEST ENGINE + TELEGRAM BOT + PAPER TRADING DASHBOARD**
+**🎉 ALL 6 MILESTONES COMPLETE + SELF-LEARNING SYSTEM (Phase 1)**
 
 **Production URLs:**
 - 🌐 Frontend: https://zurychhh-alpha-machine.vercel.app
@@ -380,7 +387,7 @@ frontend/
 | Railway Backend | ✅ Deployed | PostgreSQL + Redis + FastAPI |
 | Vercel Frontend | ✅ Deployed | React dashboard accessible |
 | Watchlist | ✅ Seeded | 10 AI/tech stocks |
-| Test Suite | ✅ 470 tests | 100% pass rate, 79% coverage |
+| Test Suite | ✅ 503 tests | 100% pass rate, 79% coverage |
 | Auto-Deploy | ✅ Configured | Push to main → auto deploy |
 | Telegram Bot | ✅ Deployed | @alpha_machine_roc_bot |
 
@@ -800,6 +807,100 @@ None - all clear ✅
 ---
 
 ## 🔄 SESSION LOG
+
+### Session 13 - 2026-01-06 (Self-Learning System - Phase 1)
+**Duration:** ~90 minutes
+**Focus:** Implement Self-Learning System with Meta-Learning Layer
+
+**Key Deliverables:**
+- ✅ `app/services/meta_learning_engine.py` - MetaLearningEngine with 4 bias detectors (545 lines)
+- ✅ `app/services/learning_engine.py` - LearningEngine with weight optimization (575 lines)
+- ✅ `app/services/regime_detector.py` - Market regime classification (NEW)
+- ✅ `app/tasks/learning_tasks.py` - Celery tasks for daily optimization (476 lines)
+- ✅ `app/api/endpoints/learning.py` - 12 API endpoints for learning system
+- ✅ `app/models/agent_weights_history.py` - Weight history model
+- ✅ `app/models/learning_log.py` - Learning log model
+- ✅ `app/models/system_config.py` - System configuration model
+- ✅ `alembic/versions/002_add_learning_tables.sql` - Database migration
+- ✅ `tests/unit/test_learning.py` - 33 learning system tests (REWRITTEN)
+- ✅ 503 tests passing (33 new learning tests)
+
+**Self-Learning System Components:**
+
+1. **MetaLearningEngine** (4 Bias Detectors):
+   - OVERFITTING: Detects when training performance ≫ validation
+   - RECENCY: Detects over-reliance on recent data
+   - THRASHING: Detects frequent weight reversals
+   - REGIME_BLINDNESS: Detects failure to adapt to market regimes
+
+2. **LearningEngine** (Weight Optimization):
+   - Rolling performance calculation (7d: 40%, 30d: 40%, 90d: 20%)
+   - Weight bounds: 0.30 - 2.00
+   - Max daily change: 10%
+   - Confidence interval validation
+   - Manual override support
+
+3. **RegimeDetector** (Market Classification):
+   - NORMAL: Standard market conditions
+   - HIGH_VOLATILITY: VIX > 25
+   - BEAR_MARKET: SMA deviation > -5%
+   - DIVERGENCE: Sector correlation < 0.3
+
+**API Endpoints Added:**
+```
+GET  /api/v1/learning/weights           - Current agent weights
+GET  /api/v1/learning/weights/history   - Weight history
+GET  /api/v1/learning/performance       - Agent performance metrics
+GET  /api/v1/learning/bias-report       - Bias detection report
+GET  /api/v1/learning/regime            - Current market regime
+POST /api/v1/learning/optimize          - Manual optimization trigger
+POST /api/v1/learning/override          - Manual weight override
+GET  /api/v1/learning/config            - Learning configuration
+POST /api/v1/learning/config            - Update configuration
+GET  /api/v1/learning/status            - Learning system status
+GET  /api/v1/learning/logs              - Learning logs
+GET  /api/v1/learning/dashboard         - Dashboard data
+```
+
+**Celery Schedule:**
+```
+00:00 EST - optimize_agent_weights (daily weight optimization)
+```
+
+**Files Created:**
+- `backend/app/services/regime_detector.py` (140 lines)
+- `backend/alembic/versions/002_add_learning_tables.sql` (50 lines)
+- `backend/tests/unit/test_learning.py` (rewritten, 590 lines)
+
+**Files Modified:**
+- `backend/app/services/__init__.py` - Added RegimeDetector, MarketRegime exports
+- `backend/app/api/endpoints/__init__.py` - Added learning router
+- `backend/app/main.py` - Registered learning router
+
+**Issues Resolved:**
+- ❌ Tests using outdated interfaces (`_load_config`, `meta_engine`)
+  - ✅ Rewrote entire test file with correct interfaces
+- ❌ JSON parsing MagicMock errors in tests
+  - ✅ Added proper mocking for config methods
+
+**Test Results:**
+```
+503 passed, 15 warnings in 248.81s
+- 33 new learning tests
+- All existing tests still passing
+```
+
+**Git Commits:**
+- `feat: Add Self-Learning System with Meta-Learning Layer (Phase 1)`
+- `fix: Update signal_generator tests for new thresholds`
+
+**Next: Phase 2 (Dashboard)**
+- Create `frontend/src/pages/Learning.tsx`
+- Dashboard showing agent performance, weights, bias detection
+- Weight history charts
+- Manual override interface
+
+---
 
 ### Session 12 (continued) - 2026-01-06 (Paper Trading Bug Fix)
 **Duration:** ~30 minutes
