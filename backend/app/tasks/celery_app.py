@@ -23,6 +23,7 @@ celery_app = Celery(
         "app.tasks.data_tasks",
         "app.tasks.signal_tasks",
         "app.tasks.telegram_tasks",
+        "app.tasks.learning_tasks",
     ],
 )
 
@@ -93,6 +94,20 @@ celery_app.conf.update(
             "schedule": 900.0,  # Every 15 minutes
             "options": {"queue": "notifications"},
         },
+
+        # Learning System: Daily weight optimization at 00:00 EST (06:00 UTC)
+        "optimize-agent-weights": {
+            "task": "app.tasks.learning_tasks.optimize_agent_weights_task",
+            "schedule": crontab(hour=0, minute=0),  # 00:00 EST
+            "options": {"queue": "learning"},
+        },
+
+        # Learning System: Bias check every 6 hours
+        "check-critical-biases": {
+            "task": "app.tasks.learning_tasks.check_critical_biases_task",
+            "schedule": crontab(hour="*/6", minute=30),  # Every 6 hours at :30
+            "options": {"queue": "learning"},
+        },
     },
 
     # Task routing
@@ -100,6 +115,7 @@ celery_app.conf.update(
         "app.tasks.data_tasks.*": {"queue": "data"},
         "app.tasks.signal_tasks.*": {"queue": "signals"},
         "app.tasks.telegram_tasks.*": {"queue": "notifications"},
+        "app.tasks.learning_tasks.*": {"queue": "learning"},
     },
 
     # Default queue

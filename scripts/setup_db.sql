@@ -118,6 +118,47 @@ CREATE TABLE IF NOT EXISTS backtest_results (
     FOREIGN KEY (signal_id) REFERENCES signals(id)
 );
 
+-- Agent Weights History: Track weight changes over time for learning system
+CREATE TABLE IF NOT EXISTS agent_weights_history (
+    id SERIAL PRIMARY KEY,
+    date DATE NOT NULL,
+    agent_name VARCHAR(50) NOT NULL,
+    weight DECIMAL(4,2) NOT NULL,
+    win_rate_7d DECIMAL(5,2),
+    win_rate_30d DECIMAL(5,2),
+    win_rate_90d DECIMAL(5,2),
+    trades_count_7d INTEGER DEFAULT 0,
+    trades_count_30d INTEGER DEFAULT 0,
+    trades_count_90d INTEGER DEFAULT 0,
+    reasoning TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Learning Log: Record all learning system events
+CREATE TABLE IF NOT EXISTS learning_log (
+    id SERIAL PRIMARY KEY,
+    date DATE NOT NULL,
+    event_type VARCHAR(30) NOT NULL, -- WEIGHT_UPDATE, BIAS_DETECTED, CORRECTION_APPLIED, REGIME_SHIFT, FREEZE, ALERT
+    agent_name VARCHAR(50),
+    metric_name VARCHAR(50),
+    old_value DECIMAL(10,4),
+    new_value DECIMAL(10,4),
+    reasoning TEXT,
+    bias_type VARCHAR(30), -- OVERFITTING, RECENCY, THRASHING, REGIME_BLINDNESS
+    correction_applied TEXT,
+    confidence_level DECIMAL(3,2),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- System Config: Configuration settings for learning system
+CREATE TABLE IF NOT EXISTS system_config (
+    id SERIAL PRIMARY KEY,
+    config_key VARCHAR(100) UNIQUE NOT NULL,
+    config_value TEXT NOT NULL,
+    description TEXT,
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
 -- Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_signals_ticker ON signals(ticker);
 CREATE INDEX IF NOT EXISTS idx_signals_timestamp ON signals(timestamp DESC);
@@ -127,6 +168,14 @@ CREATE INDEX IF NOT EXISTS idx_market_data_ticker_time ON market_data(ticker, ti
 CREATE INDEX IF NOT EXISTS idx_sentiment_ticker_time ON sentiment_data(ticker, timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_backtest_results_backtest_id ON backtest_results(backtest_id);
 CREATE INDEX IF NOT EXISTS idx_backtest_results_signal_id ON backtest_results(signal_id);
+
+-- Learning system indexes
+CREATE INDEX IF NOT EXISTS idx_agent_weights_history_date ON agent_weights_history(date DESC);
+CREATE INDEX IF NOT EXISTS idx_agent_weights_history_agent ON agent_weights_history(agent_name);
+CREATE INDEX IF NOT EXISTS idx_learning_log_date ON learning_log(date DESC);
+CREATE INDEX IF NOT EXISTS idx_learning_log_event_type ON learning_log(event_type);
+CREATE INDEX IF NOT EXISTS idx_learning_log_agent ON learning_log(agent_name);
+CREATE INDEX IF NOT EXISTS idx_system_config_key ON system_config(config_key);
 
 -- Seed initial watchlist with AI stocks
 INSERT INTO watchlist (ticker, company_name, sector, tier) VALUES
@@ -141,3 +190,23 @@ INSERT INTO watchlist (ticker, company_name, sector, tier) VALUES
     ('CRWD', 'CrowdStrike Holdings', 'Cybersecurity', 2),
     ('SNOW', 'Snowflake Inc.', 'Cloud Computing', 2)
 ON CONFLICT (ticker) DO NOTHING;
+
+-- Seed initial system config for learning system
+INSERT INTO system_config (config_key, config_value, description) VALUES
+    ('AUTO_LEARNING_ENABLED', 'false', 'Enable automatic weight optimization without human review'),
+    ('HUMAN_REVIEW_REQUIRED', 'true', 'Require human review before applying weight changes'),
+    ('MIN_CONFIDENCE_FOR_AUTO', '0.80', 'Minimum confidence level for automatic weight application'),
+    ('MAX_WEIGHT_CHANGE_DAILY', '0.10', 'Maximum allowed weight change per day (10%)'),
+    ('WEIGHT_MIN_BOUND', '0.30', 'Minimum allowed agent weight'),
+    ('WEIGHT_MAX_BOUND', '2.00', 'Maximum allowed agent weight'),
+    ('LEARNING_TIMEFRAME_WEIGHTS', '{"7d": 0.4, "30d": 0.4, "90d": 0.2}', 'Weights for different time periods in performance calculation'),
+    ('FREEZE_DURATION_DAYS', '3', 'Number of days to freeze weights when thrashing detected')
+ON CONFLICT (config_key) DO NOTHING;
+
+-- Seed initial agent weights
+INSERT INTO agent_weights_history (date, agent_name, weight, reasoning) VALUES
+    (CURRENT_DATE, 'ContrarianAgent', 1.00, 'Initial default weight'),
+    (CURRENT_DATE, 'GrowthAgent', 1.00, 'Initial default weight'),
+    (CURRENT_DATE, 'MultiModalAgent', 1.00, 'Initial default weight'),
+    (CURRENT_DATE, 'PredictorAgent', 1.00, 'Initial default weight')
+ON CONFLICT DO NOTHING;

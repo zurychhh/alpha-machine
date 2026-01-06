@@ -11,6 +11,9 @@ from app.models.performance import Performance
 from app.models.market_data import MarketData
 from app.models.sentiment_data import SentimentData
 from app.models.backtest_result import BacktestResult
+from app.models.agent_weights_history import AgentWeightsHistory
+from app.models.learning_log import LearningLog
+from app.models.system_config import SystemConfig
 
 __all__ = [
     "Watchlist",
@@ -21,4 +24,7 @@ __all__ = [
     "MarketData",
     "SentimentData",
     "BacktestResult",
+    "AgentWeightsHistory",
+    "LearningLog",
+    "SystemConfig",
 ]

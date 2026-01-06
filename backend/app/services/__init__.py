@@ -1,6 +1,6 @@
 """
 Services Layer
-Data fetching, aggregation, and backtesting services
+Data fetching, aggregation, backtesting, and learning services
 """
 
 from app.services.market_data import market_data_service, MarketDataService
@@ -11,6 +11,9 @@ from app.services.signal_ranker import signal_ranker, SignalRanker
 from app.services.portfolio_allocator import portfolio_allocator, PortfolioAllocator
 from app.services.backtesting import backtest_engine, BacktestEngine
 from app.services.telegram_bot import TelegramBotService, get_telegram_service
+from app.services.learning_engine import LearningEngine
+from app.services.meta_learning_engine import MetaLearningEngine, BiasType
+from app.services.regime_detector import RegimeDetector, MarketRegime
 
 __all__ = [
     "market_data_service",
@@ -29,4 +32,9 @@ __all__ = [
     "BacktestEngine",
     "TelegramBotService",
     "get_telegram_service",
+    "LearningEngine",
+    "MetaLearningEngine",
+    "BiasType",
+    "RegimeDetector",
+    "MarketRegime",
 ]
