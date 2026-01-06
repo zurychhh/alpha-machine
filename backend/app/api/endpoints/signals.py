@@ -543,7 +543,7 @@ async def generate_all_signals(
     Returns summary of all generated signals
     """
     # Get all tickers from watchlist
-    watchlist = db.query(Watchlist).filter(Watchlist.is_active == True).all()
+    watchlist = db.query(Watchlist).filter(Watchlist.active == True).all()
 
     if not watchlist:
         return {"message": "No active tickers in watchlist", "signals": []}
