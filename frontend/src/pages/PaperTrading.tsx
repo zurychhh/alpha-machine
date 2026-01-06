@@ -3,6 +3,7 @@
  *
  * Track signal performance in real-time without risking money.
  * Signals auto-update status: WIN (hit target), LOSS (hit stop), ACTIVE (in play)
+ * v1.0.0 - 2026-01-06
  */
 
 import { useState, useEffect } from 'react'
