@@ -17,6 +17,109 @@ None - all clear ✅
 
 ---
 
+## 🟢 RESOLVED BLOCKERS (Session 12 continued - Paper Trading Bug Fix)
+
+### Blocker #5: Internal Server Error on `/api/v1/signals/generate-all`
+
+**Date Opened:** 2026-01-06
+**Date Resolved:** 2026-01-06
+**Severity:** 🔴 High
+**Status:** 🟢 Resolved
+
+**Description:**
+The batch signal generation endpoint returned `500 Internal Server Error` when called. Paper Trading Dashboard depended on this endpoint to generate new signals.
+
+**Error Message:**
+```
+AttributeError: type object 'Watchlist' has no attribute 'is_active'
+```
+
+**Impact:**
+- Blocked new signal generation
+- Paper Trading Dashboard showed 0 signals
+- Celery Beat scheduled tasks would also fail
+
+**Root Cause:**
+In `signals.py:546`, the code used `Watchlist.is_active` but the SQLAlchemy model has the column named `active` (not `is_active`).
+
+**Solution:**
+```python
+# Before (error)
+watchlist = db.query(Watchlist).filter(Watchlist.is_active == True).all()
+
+# After (fix)
+watchlist = db.query(Watchlist).filter(Watchlist.active == True).all()
+```
+
+**Code Changes:**
+- `backend/app/api/endpoints/signals.py:546` - Changed column name
+- Git commit: `7263430`
+
+**Time Lost:** ~10 minutes
+**Lesson Learned:** Always verify SQLAlchemy model column names match the code usage
+
+---
+
+### Blocker #6: All Signals HOLD (No BUY/SELL for Paper Trading)
+
+**Date Opened:** 2026-01-06
+**Date Resolved:** 2026-01-06
+**Severity:** 🔴 High
+**Status:** 🟢 Resolved
+
+**Description:**
+After fixing Blocker #5, signals were generated but ALL 22 signals were HOLD. Paper Trading Dashboard filters for BUY signals only, showing 0 signals. The 14-day validation period was 2 days in and had no actionable signals.
+
+**Impact:**
+- Paper Trading validation impossible
+- No BUY/SELL signals to track
+- Consensus algorithm too conservative
+
+**Root Cause:**
+The `_score_to_signal()` thresholds in `signal_generator.py` were too conservative:
+- BUY required score >= 0.2, but typical raw scores were ~0.1
+- Neutral zone ±0.2 was too wide
+
+**Solution:**
+Adjusted thresholds in `signal_generator.py`:
+```python
+# Before (too conservative)
+BUY: score >= 0.2
+SELL: score <= -0.2
+STRONG_BUY: score >= 0.6
+STRONG_SELL: score <= -0.6
+
+# After (more sensitive)
+BUY: score >= 0.1
+SELL: score <= -0.1
+STRONG_BUY: score >= 0.5
+STRONG_SELL: score <= -0.5
+```
+
+Also adjusted position sizing threshold:
+```python
+# Before
+if score_strength < 0.2 or confidence < ...:
+
+# After
+if score_strength < 0.1 or confidence < ...:
+```
+
+**Code Changes:**
+- `backend/app/agents/signal_generator.py:328-337` - Adjusted signal thresholds
+- `backend/app/agents/signal_generator.py:354` - Adjusted position sizing threshold
+- Git commit: `518ee0b`
+
+**Result After Fix:**
+- Generated 10 signals: 1 BUY (NVDA), 1 SELL (AAPL), 8 HOLD
+- Paper Trading Dashboard now shows 2 BUY signals (NVDA + from previous batch)
+- Validation period can proceed with actionable signals
+
+**Time Lost:** ~15 minutes
+**Lesson Learned:** Signal thresholds need tuning based on observed raw_score distribution
+
+---
+
 ## 🟢 RESOLVED BLOCKERS (Session 11 - Backtest Engine)
 
 ### Blocker #3: SQLAlchemy Mock Chain TypeError
@@ -411,28 +514,30 @@ Manually switching API keys when limit hit.
 ## 📊 BLOCKER STATISTICS
 
 **Summary:**
-- Total blockers encountered: 4
-- Average resolution time: ~12 minutes
+- Total blockers encountered: 6
+- Average resolution time: ~13 minutes
 - Currently open: 0
-- Resolved: 4
+- Resolved: 6
 
 **By Severity:**
-- 🔴 High: 3 resolved, 0 open
+- 🔴 High: 5 resolved, 0 open
 - 🟡 Medium: 1 resolved, 0 open
 - 🟢 Low: 0 resolved, 0 open
 
 **By Category:**
 - API/External: 0
-- Code/Logic: 2 (Session 11 - Mock + Timestamp)
+- Code/Logic: 4 (Session 11 - Mock + Timestamp, Session 12 - Column name + Threshold)
 - Infrastructure: 0
 - Configuration/Dependencies: 2 (Milestone 1 - psycopg, pandas)
 
 **Top Time Wasters:**
-1. Python 3.13 package compatibility - 20 minutes total
+1. Signal threshold tuning - 15 minutes
 2. PostgreSQL timestamp comparison - 15 minutes
-3. SQLAlchemy mock configuration - 10 minutes
+3. Python 3.13 package compatibility - 20 minutes total
+4. SQLAlchemy column name mismatch - 10 minutes
+5. SQLAlchemy mock configuration - 10 minutes
 
-**Last Updated:** 2026-01-04
+**Last Updated:** 2026-01-06
 
 ---
 

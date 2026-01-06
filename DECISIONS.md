@@ -39,7 +39,8 @@
 13. [Celery Beat Worker Deployment](#decision-13-celery-beat-worker-deployment-strategy)
 14. [Backtest Engine Architecture](#decision-14-backtest-engine-architecture)
 15. [Telegram Bot Architecture](#decision-15-telegram-bot-architecture)
-16. [Example Decision Template](#decision-template)
+16. [Signal Threshold Adjustment](#decision-16-signal-threshold-adjustment)
+17. [Example Decision Template](#decision-template)
 
 ---
 
@@ -1048,6 +1049,137 @@ Telegram → Webhook → FastAPI → TelegramBotService → httpx → Telegram A
 1. python-telegram-bot's Application pattern doesn't fit webhook model
 2. Direct API calls via httpx are simpler for webhook integrations
 3. Getting chat_id requires temporary webhook deletion + getUpdates polling
+
+---
+
+## Decision 16: Signal Threshold Adjustment
+
+**Date:** 2026-01-06
+**Status:** ✅ Accepted
+**Deciders:** Claude Code
+**Tags:** `signal-generation`, `algorithm`, `paper-trading`, `post-mvp`
+
+### Context
+
+The Paper Trading Dashboard (14-day validation period starting Jan 5, 2026) was showing 0 signals after 2 days. Investigation revealed:
+- Database had 22 signals, but ALL were HOLD
+- Paper Trading filters for BUY signals only (actionable for validation)
+- Raw scores from agents were typically around 0.1
+- Original thresholds required score >= 0.2 for BUY
+
+### Options Considered
+
+#### Option A: Keep Conservative Thresholds
+**Pros:**
+- Fewer false positives
+- More confident signals
+
+**Cons:**
+- No actionable signals during validation period
+- Can't test the system without signals
+- Defeats purpose of paper trading
+
+#### Option B: Adjust Thresholds to Match Score Distribution (Chosen ✅)
+**Pros:**
+- Generates actionable BUY/SELL signals
+- Enables paper trading validation
+- Can tune further based on results
+
+**Cons:**
+- May generate more signals that don't perform well
+- Less conservative approach
+
+#### Option C: Adjust Agent Weights
+**Pros:**
+- Could amplify scores to hit thresholds
+
+**Cons:**
+- More complex change
+- Changes consensus dynamics
+- Harder to tune
+
+### Decision
+
+**Chose: Adjust Signal Thresholds (Option B)**
+
+**Threshold Changes:**
+| Signal Type | Before | After |
+|-------------|--------|-------|
+| STRONG_BUY | >= 0.6 | >= 0.5 |
+| BUY | >= 0.2 | >= 0.1 |
+| HOLD | -0.2 to 0.2 | -0.1 to 0.1 |
+| SELL | <= -0.2 | <= -0.1 |
+| STRONG_SELL | <= -0.6 | <= -0.5 |
+
+**Position Sizing Threshold:**
+- Before: score_strength < 0.2 → no position
+- After: score_strength < 0.1 → no position
+
+**Rationale:**
+1. Raw scores cluster around ±0.1, original thresholds too wide
+2. Paper trading needs actionable signals to validate strategy
+3. Thresholds can be re-tuned based on 14-day results
+4. Better to generate some signals and learn than none
+5. Risk: Paper trading, not real money
+
+### Implementation
+
+**File Changed:** `backend/app/agents/signal_generator.py`
+
+```python
+def _score_to_signal(self, score: float) -> SignalType:
+    """
+    Thresholds adjusted for 14-day paper trading validation:
+    - More sensitive to generate actionable BUY/SELL signals
+    - Neutral zone reduced from ±0.2 to ±0.1
+    """
+    if score >= 0.5:
+        return SignalType.STRONG_BUY
+    elif score >= 0.1:
+        return SignalType.BUY
+    elif score >= -0.1:
+        return SignalType.HOLD
+    elif score >= -0.5:
+        return SignalType.SELL
+    else:
+        return SignalType.STRONG_SELL
+```
+
+**Git Commit:** `518ee0b`
+
+### Results After Fix
+
+| Metric | Before | After |
+|--------|--------|-------|
+| BUY signals | 0 | 1 (NVDA) |
+| SELL signals | 0 | 1 (AAPL) |
+| HOLD signals | 22 | 8 |
+| Paper Trading Dashboard | 0 signals | 2 BUY signals tracked |
+
+### Consequences
+
+**Positive:**
+- Paper Trading validation can now proceed
+- System generates diverse signal types
+- 12 days remaining to collect performance data
+- Can tune thresholds again based on win/loss rate
+
+**Negative:**
+- May generate more false positives
+- Less conservative than original design
+
+**Mitigation:**
+- This is paper trading (no real money at risk)
+- 14-day validation period will reveal optimal thresholds
+- Can revert or adjust based on results
+
+**Technical Debt:**
+- May need threshold re-adjustment after validation period
+- Impact: Low (simple configuration change)
+
+**Reversible:** Yes - single line changes in signal_generator.py
+
+**Related Blocker:** #6 (All Signals HOLD)
 
 ---
 
