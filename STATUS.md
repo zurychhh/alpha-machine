@@ -59,6 +59,11 @@
   - 12 API endpoints: `/api/v1/learning/*`
   - Dashboard: `/learning` route with agent weights, biases, logs
   - Manual weight override interface
+  - **Telegram Learning Alerts:**
+    - `/learning` command - Learning system status
+    - `/weights` command - Current agent weights
+    - Weekly summary (Sunday 6PM EST)
+    - Bias alerts (every 6 hours)
 
 ### 💼 Business Value Summary
 
@@ -425,9 +430,11 @@ frontend/
 6. [ ] Add more stocks to watchlist
 
 **Telegram Bot (@alpha_machine_roc_bot):**
-- ✅ Commands: /start, /status, /signals, /watchlist, /help
+- ✅ Commands: /start, /status, /signals, /watchlist, /learning, /weights, /help
 - ✅ Real-time alerts for signals with ≥75% confidence
 - ✅ Daily summary at 8:30 AM EST
+- ✅ Weekly learning summary (Sunday 6PM EST)
+- ✅ Bias alerts every 6 hours
 - ✅ Webhook: https://backend-production-a7f4.up.railway.app/api/v1/telegram/webhook
 
 **To Resume Development:**
@@ -911,9 +918,26 @@ GET  /api/v1/learning/dashboard         - Dashboard data
 
 **Git Commit:** `b8b8519` - feat: Add Learning Dashboard (Phase 2)
 
-**Next: Phase 3 (Telegram Alerts)**
-- Add learning status alerts to Telegram bot
-- Notify on bias detection, weight changes, regime shifts
+**Phase 3 Complete (Telegram Learning Alerts):**
+- ✅ `backend/app/services/telegram_bot.py` - Added learning alert methods:
+  - `send_bias_alert_sync` - Alert for detected biases
+  - `send_weight_change_alert_sync` - Alert for weight changes
+  - `send_regime_shift_alert_sync` - Alert for regime shifts
+  - `send_learning_summary_sync` - Weekly summary
+- ✅ Added `/learning` and `/weights` Telegram commands
+- ✅ Updated `/start` and `/help` to include new commands
+- ✅ `backend/app/tasks/learning_tasks.py` - Added Celery tasks:
+  - `send_weekly_learning_summary_task` - Sunday 6PM EST
+  - `send_learning_alerts_task` - Every 6 hours
+- ✅ `backend/app/tasks/celery_app.py` - Updated schedule with learning alerts
+- ✅ 503 tests passing (all existing + new)
+
+**Git Commit:** `6dd2c2d` - feat: Add Telegram learning alerts (Phase 3)
+
+**Self-Learning System Complete:**
+- Phase 1: Backend infrastructure (MetaLearningEngine, LearningEngine, RegimeDetector) ✅
+- Phase 2: Frontend Learning Dashboard ✅
+- Phase 3: Telegram Learning Alerts ✅
 
 ---
 
