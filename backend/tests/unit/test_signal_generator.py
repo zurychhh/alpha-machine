@@ -166,7 +166,7 @@ class TestSignalGenerator:
             name="Bullish",
             signal_type=SignalType.BUY,
             confidence=0.8,
-            raw_score=0.5,
+            raw_score=0.3,  # Use 0.3 to get BUY (0.1 <= score < 0.5)
         )
         generator = SignalGenerator(agents=[agent])
 
@@ -310,8 +310,8 @@ class TestPositionSizing:
         assert consensus.position_size == PositionSize.NONE
 
     def test_no_position_weak_signal(self):
-        """Test no position for weak signal"""
-        agent = MockAgent(raw_score=0.1, confidence=0.8)
+        """Test no position for weak signal (HOLD signals get NONE position)"""
+        agent = MockAgent(raw_score=0.05, confidence=0.8)  # Use 0.05 to get HOLD (-0.1 <= score < 0.1)
         generator = SignalGenerator(agents=[agent])
 
         consensus = generator.generate_signal(
@@ -319,6 +319,8 @@ class TestPositionSizing:
             market_data={"indicators": {"rsi": 50}},
         )
 
+        # HOLD signals get NONE position
+        assert consensus.signal == SignalType.HOLD
         assert consensus.position_size == PositionSize.NONE
 
     def test_large_position_high_conviction(self):
