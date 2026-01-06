@@ -7,6 +7,14 @@ import type {
   GenerateSignalRequest,
   GenerateSignalResponse,
   PaperTradingData,
+  WeightsResponse,
+  WeightHistoryResponse,
+  BiasCheckResponse,
+  LearningLogsResponse,
+  LogSummaryResponse,
+  LearningConfigResponse,
+  OptimizationPreview,
+  WeightOverrideRequest,
 } from '../types'
 
 const API_BASE = '/api/v1'
@@ -127,6 +135,81 @@ class ApiClient {
   // Health check
   async healthCheck(): Promise<{ status: string }> {
     return this.request<{ status: string }>('/health')
+  }
+
+  // Learning System
+  async getLearningWeights(): Promise<WeightsResponse> {
+    return this.request<WeightsResponse>('/learning/weights/current')
+  }
+
+  async getLearningWeightHistory(params?: {
+    agent_name?: string
+    days?: number
+  }): Promise<WeightHistoryResponse> {
+    const searchParams = new URLSearchParams()
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          searchParams.append(key, String(value))
+        }
+      })
+    }
+    const query = searchParams.toString()
+    return this.request<WeightHistoryResponse>(
+      `/learning/weights/history${query ? `?${query}` : ''}`
+    )
+  }
+
+  async checkBiases(): Promise<BiasCheckResponse> {
+    return this.request<BiasCheckResponse>('/learning/biases/check')
+  }
+
+  async getLearningLogs(params?: {
+    event_type?: string
+    agent_name?: string
+    days?: number
+    limit?: number
+    offset?: number
+  }): Promise<LearningLogsResponse> {
+    const searchParams = new URLSearchParams()
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          searchParams.append(key, String(value))
+        }
+      })
+    }
+    const query = searchParams.toString()
+    return this.request<LearningLogsResponse>(
+      `/learning/logs${query ? `?${query}` : ''}`
+    )
+  }
+
+  async getLearningLogSummary(days?: number): Promise<LogSummaryResponse> {
+    const query = days ? `?days=${days}` : ''
+    return this.request<LogSummaryResponse>(`/learning/logs/summary${query}`)
+  }
+
+  async getLearningConfig(): Promise<LearningConfigResponse> {
+    return this.request<LearningConfigResponse>('/learning/config')
+  }
+
+  async getOptimizationPreview(): Promise<OptimizationPreview> {
+    return this.request<OptimizationPreview>('/learning/optimize/preview')
+  }
+
+  async overrideWeight(data: WeightOverrideRequest): Promise<{ status: string; message: string }> {
+    return this.request<{ status: string; message: string }>('/learning/weights/override', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async triggerOptimization(apply_weights: boolean = false, force: boolean = false): Promise<{ status: string; task_id: string }> {
+    return this.request<{ status: string; task_id: string }>('/learning/optimize/trigger', {
+      method: 'POST',
+      body: JSON.stringify({ apply_weights, force }),
+    })
   }
 }
 

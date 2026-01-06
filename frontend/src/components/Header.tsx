@@ -53,6 +53,12 @@ function Header() {
             >
               Portfolio
             </Link>
+            <Link
+              to="/learning"
+              className={`inline-flex items-center px-1 pt-1 text-sm font-medium ${isActive('/learning')}`}
+            >
+              Learning
+            </Link>
           </nav>
 
           <div className="flex items-center space-x-4">

@@ -132,3 +132,133 @@ export interface PaperTradingData {
   timeline: PaperDay[]
   signals: PaperSignal[]
 }
+
+// Learning System Types
+export interface AgentWeight {
+  agent_name: string
+  weight: number
+  win_rate_7d: number | null
+  win_rate_30d: number | null
+  win_rate_90d: number | null
+  trades_count_7d: number | null
+  trades_count_30d: number | null
+  trades_count_90d: number | null
+  last_updated: string | null
+  reasoning: string | null
+}
+
+export interface WeightsResponse {
+  status: string
+  weights: AgentWeight[]
+  timestamp: string
+}
+
+export interface WeightHistoryEntry {
+  id: number
+  date: string
+  agent_name: string
+  weight: number
+  win_rate_7d: number | null
+  win_rate_30d: number | null
+  win_rate_90d: number | null
+  trades_count_7d: number | null
+  trades_count_30d: number | null
+  trades_count_90d: number | null
+  reasoning: string | null
+}
+
+export interface WeightHistoryResponse {
+  status: string
+  agent_name: string | null
+  period_days: number
+  history: WeightHistoryEntry[]
+}
+
+export interface BiasInfo {
+  type: string
+  agent: string | null
+  severity: number
+  description: string
+  correction_available: boolean
+}
+
+export interface BiasCheckResponse {
+  status: string
+  check_date: string
+  biases_detected: number
+  biases: BiasInfo[]
+  recommendations: string[]
+  overall_confidence: number
+}
+
+export interface LearningLogEntry {
+  id: number
+  date: string
+  event_type: string
+  agent_name: string | null
+  metric_name: string | null
+  old_value: number | null
+  new_value: number | null
+  reasoning: string | null
+  bias_type: string | null
+  correction_applied: string | null
+  confidence_level: number | null
+  created_at: string
+}
+
+export interface LearningLogsResponse {
+  status: string
+  total: number
+  offset: number
+  limit: number
+  filters: {
+    event_type: string | null
+    agent_name: string | null
+    days: number
+  }
+  logs: LearningLogEntry[]
+}
+
+export interface LogSummaryResponse {
+  status: string
+  period_days: number
+  by_event_type: Record<string, number>
+  by_agent: Record<string, number>
+  by_bias_type: Record<string, number>
+}
+
+export interface LearningConfig {
+  key: string
+  value: string
+  category: string
+  description: string | null
+}
+
+export interface LearningConfigResponse {
+  status: string
+  config: LearningConfig[]
+}
+
+export interface OptimizationPreview {
+  status: string
+  current_weights: Record<string, number>
+  proposed_weights: Record<string, number>
+  weight_changes: Record<string, { old: number; new: number; change: number }>
+  performances: Record<string, {
+    win_rate_7d: number | null
+    win_rate_30d: number | null
+    win_rate_90d: number | null
+    blended_score: number
+  }>
+  biases_detected: BiasInfo[]
+  safe_to_apply: boolean
+  requires_human_review: boolean
+  auto_learning_enabled: boolean
+  timestamp: string
+}
+
+export interface WeightOverrideRequest {
+  agent_name: string
+  new_weight: number
+  reason: string
+}
