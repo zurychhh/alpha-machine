@@ -29,6 +29,7 @@ praw>=7.7.1
 beautifulsoup4>=4.12.3
 pandas>=2.2.0
 numpy>=2.0.0
+vaderSentiment>=3.3.2
 
 # Telegram
 python-telegram-bot>=20.0

@@ -1,8 +1,12 @@
 """
 Sentiment Data Service
 Aggregates sentiment from Reddit, Twitter, and News sources
+
+Uses VADER (Valence Aware Dictionary for sEntiment Reasoning) for
+accurate financial text sentiment analysis.
 """
 
+import json
 import requests
 import time
 from typing import Dict, List, Optional
@@ -11,6 +15,23 @@ from app.core.config import settings
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Initialize VADER - lazy load to avoid import errors during testing
+_vader_analyzer = None
+
+
+def get_vader_analyzer():
+    """Lazy-load VADER analyzer to avoid import errors."""
+    global _vader_analyzer
+    if _vader_analyzer is None:
+        try:
+            from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+            _vader_analyzer = SentimentIntensityAnalyzer()
+            logger.info("VADER sentiment analyzer initialized")
+        except ImportError:
+            logger.warning("vaderSentiment not installed, using fallback")
+            _vader_analyzer = None
+    return _vader_analyzer
 
 
 def _make_request_with_retry(
@@ -96,9 +117,56 @@ def _make_request_with_retry(
 class SentimentDataService:
     """Aggregate sentiment from multiple social/news sources"""
 
+    # Cache TTL in seconds (30 minutes)
+    CACHE_TTL = 1800
+
     def __init__(self):
         self.reddit = None
+        self.vader = get_vader_analyzer()
         self._init_reddit()
+
+    def _get_cached_sentiment(self, ticker: str) -> Optional[Dict]:
+        """
+        Check Redis cache for sentiment data.
+
+        Args:
+            ticker: Stock ticker symbol
+
+        Returns:
+            Cached sentiment data or None if not found
+        """
+        if not settings.REDIS_URL:
+            return None
+
+        try:
+            import redis
+            r = redis.from_url(settings.REDIS_URL)
+            cached = r.get(f"sentiment:{ticker}")
+            if cached:
+                logger.debug(f"Cache hit for sentiment:{ticker}")
+                return json.loads(cached)
+        except Exception as e:
+            logger.warning(f"Redis cache read failed: {e}")
+        return None
+
+    def _cache_sentiment(self, ticker: str, data: Dict):
+        """
+        Cache sentiment data to Redis.
+
+        Args:
+            ticker: Stock ticker symbol
+            data: Sentiment data to cache
+        """
+        if not settings.REDIS_URL:
+            return
+
+        try:
+            import redis
+            r = redis.from_url(settings.REDIS_URL)
+            r.setex(f"sentiment:{ticker}", self.CACHE_TTL, json.dumps(data))
+            logger.debug(f"Cached sentiment for {ticker} (TTL={self.CACHE_TTL}s)")
+        except Exception as e:
+            logger.warning(f"Redis cache write failed: {e}")
 
     def _init_reddit(self):
         """Initialize Reddit API client (PRAW)"""
@@ -155,6 +223,8 @@ class SentimentDataService:
             # Search relevant subreddits
             subreddits = ["wallstreetbets", "stocks", "investing", "stockmarket"]
 
+            sentiment_sum = 0.0
+
             for subreddit_name in subreddits:
                 try:
                     subreddit = self.reddit.subreddit(subreddit_name)
@@ -163,12 +233,14 @@ class SentimentDataService:
                     for submission in subreddit.search(ticker, time_filter="day", limit=25):
                         mentions += 1
 
-                        # Simple sentiment based on score and title keywords
+                        # VADER-based sentiment analysis (returns -1.0 to 1.0)
                         sentiment = self._analyze_reddit_post(submission)
+                        sentiment_sum += sentiment
 
-                        if sentiment > 0:
+                        # Classify based on compound score thresholds
+                        if sentiment >= 0.05:
                             positive += 1
-                        elif sentiment < 0:
+                        elif sentiment <= -0.05:
                             negative += 1
                         else:
                             neutral += 1
@@ -180,7 +252,7 @@ class SentimentDataService:
                                     "title": submission.title[:100],
                                     "score": submission.score,
                                     "subreddit": subreddit_name,
-                                    "sentiment": sentiment,
+                                    "sentiment": round(sentiment, 3),
                                 }
                             )
 
@@ -188,9 +260,9 @@ class SentimentDataService:
                     logger.warning(f"Error searching r/{subreddit_name}: {e}")
                     continue
 
-            # Calculate sentiment score (-1 to +1)
+            # Calculate average sentiment score (-1 to +1)
             if mentions > 0:
-                sentiment_score = (positive - negative) / mentions
+                sentiment_score = sentiment_sum / mentions
             else:
                 sentiment_score = 0.0
 
@@ -214,69 +286,61 @@ class SentimentDataService:
 
         return result
 
-    def _analyze_reddit_post(self, submission) -> int:
+    def _analyze_reddit_post(self, submission) -> float:
         """
-        Simple sentiment analysis for Reddit post
+        Analyze Reddit post sentiment using VADER.
 
-        Returns: 1 (positive), -1 (negative), 0 (neutral)
+        Args:
+            submission: Reddit submission object
+
+        Returns:
+            Compound sentiment score (-1.0 to 1.0)
         """
-        # Positive indicators
-        positive_keywords = [
-            "buy",
-            "bullish",
-            "moon",
-            "rocket",
-            "gain",
-            "profit",
-            "calls",
-            "long",
-            "undervalued",
-            "breakout",
-            "surge",
-            "beat",
-            "upgrade",
-            "strong",
-            "growth",
-        ]
+        # Build text from title and selftext
+        text = submission.title
+        if hasattr(submission, 'selftext') and submission.selftext:
+            # Limit selftext to avoid processing huge posts
+            text += " " + submission.selftext[:500]
 
-        # Negative indicators
-        negative_keywords = [
-            "sell",
-            "bearish",
-            "crash",
-            "dump",
-            "loss",
-            "puts",
-            "short",
-            "overvalued",
-            "downgrade",
-            "weak",
-            "miss",
-            "plunge",
-            "drop",
-            "concern",
-            "risk",
-            "avoid",
-        ]
+        # Use VADER if available
+        if self.vader:
+            scores = self.vader.polarity_scores(text)
+            compound = scores['compound']
 
+            # Engagement boost: high score + high upvote ratio = community agreement
+            if submission.score > 100 and submission.upvote_ratio > 0.8:
+                compound = min(compound + 0.1, 1.0)
+            elif submission.score < 0:
+                # Negative score indicates community disagrees with sentiment
+                compound = max(compound - 0.1, -1.0)
+
+            return compound
+
+        # Fallback to simple keyword analysis if VADER not available
         title = submission.title.lower()
 
-        # Count keyword matches
+        positive_keywords = [
+            "buy", "bullish", "moon", "rocket", "gain", "profit", "calls",
+            "long", "undervalued", "breakout", "surge", "beat", "upgrade",
+        ]
+        negative_keywords = [
+            "sell", "bearish", "crash", "dump", "loss", "puts", "short",
+            "overvalued", "downgrade", "weak", "miss", "plunge", "drop",
+        ]
+
         positive_count = sum(1 for kw in positive_keywords if kw in title)
         negative_count = sum(1 for kw in negative_keywords if kw in title)
 
-        # Also consider upvote ratio and score
         if submission.score > 100 and submission.upvote_ratio > 0.8:
             positive_count += 1
         elif submission.score < 0:
             negative_count += 1
 
         if positive_count > negative_count:
-            return 1
+            return 0.5
         elif negative_count > positive_count:
-            return -1
-        else:
-            return 0
+            return -0.5
+        return 0.0
 
     def get_news_sentiment(self, ticker: str) -> Dict:
         """
@@ -328,17 +392,21 @@ class SentimentDataService:
                 negative = 0
                 neutral = 0
                 headlines = []
+                sentiment_sum = 0.0
 
                 for article in articles:
                     title = article.get("title", "")
                     if not title:
                         continue
 
+                    # VADER-based sentiment analysis (returns -1.0 to 1.0)
                     sentiment = self._analyze_headline(title)
+                    sentiment_sum += sentiment
 
-                    if sentiment > 0:
+                    # Classify based on compound score thresholds
+                    if sentiment >= 0.05:
                         positive += 1
-                    elif sentiment < 0:
+                    elif sentiment <= -0.05:
                         negative += 1
                     else:
                         neutral += 1
@@ -350,12 +418,12 @@ class SentimentDataService:
                                 "title": title[:150],
                                 "source": article.get("source", {}).get("name", "Unknown"),
                                 "published": article.get("publishedAt", ""),
-                                "sentiment": sentiment,
+                                "sentiment": round(sentiment, 3),
                             }
                         )
 
                 total = len(articles)
-                sentiment_score = (positive - negative) / total if total > 0 else 0.0
+                sentiment_score = sentiment_sum / total if total > 0 else 0.0
 
                 result.update(
                     {
@@ -384,77 +452,61 @@ class SentimentDataService:
 
         return result
 
-    def _analyze_headline(self, headline: str) -> int:
+    def _analyze_headline(self, headline: str) -> float:
         """
-        Simple sentiment analysis for news headline
+        Analyze news headline sentiment using VADER.
 
-        Returns: 1 (positive), -1 (negative), 0 (neutral)
+        Args:
+            headline: News headline text
+
+        Returns:
+            Compound sentiment score (-1.0 to 1.0)
         """
+        # Use VADER if available
+        if self.vader:
+            scores = self.vader.polarity_scores(headline)
+            return scores['compound']
+
+        # Fallback to keyword analysis
         headline_lower = headline.lower()
 
-        # Positive keywords
         positive_keywords = [
-            "surge",
-            "rally",
-            "gain",
-            "bullish",
-            "upgrade",
-            "beat",
-            "record",
-            "soar",
-            "jump",
-            "rise",
-            "growth",
-            "profit",
-            "breakthrough",
-            "success",
-            "strong",
-            "outperform",
-            "buy",
+            "surge", "rally", "gain", "bullish", "upgrade", "beat", "record",
+            "soar", "jump", "rise", "growth", "profit", "breakthrough",
         ]
-
-        # Negative keywords
         negative_keywords = [
-            "plunge",
-            "drop",
-            "bearish",
-            "downgrade",
-            "miss",
-            "crash",
-            "fall",
-            "decline",
-            "loss",
-            "concern",
-            "warning",
-            "cut",
-            "layoff",
-            "lawsuit",
-            "investigation",
-            "sell",
-            "weak",
-            "fear",
+            "plunge", "drop", "bearish", "downgrade", "miss", "crash", "fall",
+            "decline", "loss", "concern", "warning", "cut", "layoff", "lawsuit",
         ]
 
         positive_count = sum(1 for kw in positive_keywords if kw in headline_lower)
         negative_count = sum(1 for kw in negative_keywords if kw in headline_lower)
 
         if positive_count > negative_count:
-            return 1
+            return 0.5
         elif negative_count > positive_count:
-            return -1
-        else:
-            return 0
+            return -0.5
+        return 0.0
 
-    def aggregate_sentiment(self, ticker: str) -> Dict:
+    def aggregate_sentiment(self, ticker: str, use_cache: bool = True) -> Dict:
         """
-        Combine all sentiment sources into weighted average
+        Combine all sentiment sources into weighted average.
 
         Args:
             ticker: Stock ticker symbol
+            use_cache: Whether to use Redis caching (default: True)
 
         Returns:
             Dictionary with combined sentiment data
         """
+        # Check cache first
+        if use_cache:
+            cached = self._get_cached_sentiment(ticker)
+            if cached:
+                logger.info(f"Using cached sentiment for {ticker}")
+                cached["from_cache"] = True
+                return cached
+
         reddit_data = self.get_reddit_sentiment(ticker)
         news_data = self.get_news_sentiment(ticker)
 
@@ -495,9 +547,14 @@ class SentimentDataService:
             "news": news_data,
             "total_mentions": reddit_data.get("mentions", 0) + news_data.get("article_count", 0),
             "timestamp": datetime.now().isoformat(),
+            "from_cache": False,
         }
 
         logger.info(f"Combined sentiment for {ticker}: {combined_score:.2f} ({sentiment_label})")
+
+        # Cache the result for future requests
+        if use_cache:
+            self._cache_sentiment(ticker, result)
 
         return result
 

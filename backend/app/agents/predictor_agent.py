@@ -113,13 +113,21 @@ class PredictorAgent(BaseAgent):
         if trend_reason:
             reasoning_parts.append(trend_reason)
 
+        # 6. Sentiment Analysis (Reddit + News)
+        sent_score, sent_conf, sent_reason = self._analyze_sentiment(sentiment_data)
+        factors["sentiment_signal"] = sent_score
+        if sent_reason:
+            reasoning_parts.append(sent_reason)
+
         # Calculate weighted final score
+        # Weights adjusted to include sentiment (20% weight, sum = 1.0)
         weights = {
-            "rsi_signal": 0.20,
-            "ma_signal": 0.25,
-            "momentum_signal": 0.25,
-            "volume_signal": 0.10,
-            "trend_signal": 0.20,
+            "rsi_signal": 0.16,       # was 0.20
+            "ma_signal": 0.20,        # was 0.25
+            "momentum_signal": 0.20,  # was 0.25
+            "volume_signal": 0.08,    # was 0.10
+            "trend_signal": 0.16,     # was 0.20
+            "sentiment_signal": 0.20, # NEW: sentiment gets 20% weight
         }
 
         # Calculate weighted score
@@ -420,3 +428,55 @@ class PredictorAgent(BaseAgent):
         confidence = agreement * 0.6 + coverage * 0.4
 
         return min(confidence, 1.0)
+
+    def _analyze_sentiment(self, sentiment_data: Optional[Dict]) -> tuple:
+        """
+        Analyze sentiment data from Reddit and News sources.
+
+        Args:
+            sentiment_data: Combined sentiment data from SentimentDataService
+
+        Returns: (score, confidence, reasoning)
+        """
+        if not sentiment_data:
+            return 0.0, 0.0, ""
+
+        # Extract combined sentiment score (-1 to 1)
+        combined = sentiment_data.get("combined_sentiment", 0)
+        total_mentions = sentiment_data.get("total_mentions", 0)
+        sentiment_label = sentiment_data.get("sentiment_label", "neutral")
+
+        # No data = no signal
+        if total_mentions == 0:
+            return 0.0, 0.0, ""
+
+        # Calculate confidence based on data volume
+        # More mentions = higher confidence in the signal
+        if total_mentions < 5:
+            confidence = 0.2
+        elif total_mentions < 10:
+            confidence = 0.3
+        elif total_mentions < 25:
+            confidence = 0.5
+        elif total_mentions < 50:
+            confidence = 0.6
+        else:
+            confidence = 0.7
+
+        # Build reasoning
+        reddit_score = sentiment_data.get("reddit", {}).get("sentiment_score", 0)
+        news_score = sentiment_data.get("news", {}).get("sentiment_score", 0)
+
+        reasoning_parts = [f"Sentiment: {sentiment_label}"]
+
+        if reddit_score != 0:
+            reddit_mentions = sentiment_data.get("reddit", {}).get("mentions", 0)
+            reasoning_parts.append(f"Reddit({reddit_mentions}): {reddit_score:+.2f}")
+
+        if news_score != 0:
+            news_count = sentiment_data.get("news", {}).get("article_count", 0)
+            reasoning_parts.append(f"News({news_count}): {news_score:+.2f}")
+
+        reasoning = " | ".join(reasoning_parts)
+
+        return combined, confidence, reasoning
