@@ -40,7 +40,8 @@
 14. [Backtest Engine Architecture](#decision-14-backtest-engine-architecture)
 15. [Telegram Bot Architecture](#decision-15-telegram-bot-architecture)
 16. [Signal Threshold Adjustment](#decision-16-signal-threshold-adjustment)
-17. [Example Decision Template](#decision-template)
+17. [Self-Learning System Architecture](#decision-17-self-learning-system-architecture)
+18. [Example Decision Template](#decision-template)
 
 ---
 
@@ -1180,6 +1181,168 @@ def _score_to_signal(self, score: float) -> SignalType:
 **Reversible:** Yes - single line changes in signal_generator.py
 
 **Related Blocker:** #6 (All Signals HOLD)
+
+---
+
+## Decision 17: Self-Learning System Architecture
+
+**Date:** 2026-01-06
+**Status:** ✅ Accepted
+**Deciders:** Claude Code
+**Tags:** `learning`, `meta-learning`, `automation`, `post-mvp`
+
+### Context
+
+Need system to automatically optimize agent weights based on historical performance. Key requirements:
+- Detect and correct learning biases (overfitting, recency, thrashing, regime blindness)
+- Adapt weights to market regime changes (normal, high volatility, bear market)
+- Provide human oversight with manual override capability
+- Alert on significant changes via Telegram
+
+### Options Considered
+
+#### Option A: Simple Win-Rate Based Weights
+**Pros:**
+- Easy to implement
+- Clear logic
+- No complex dependencies
+
+**Cons:**
+- Ignores market regimes
+- No bias detection
+- No adaptability to changing conditions
+
+#### Option B: Full Meta-Learning System (Chosen ✅)
+**Pros:**
+- Detects 4 types of biases before they cause losses
+- Adapts to market regime changes
+- Rolling performance windows (7d/30d/90d blended)
+- Human-in-the-loop with manual override
+- Telegram alerts for transparency
+- Dashboard for monitoring
+
+**Cons:**
+- More complex implementation
+- Requires calibration period (30 days minimum data)
+- May over-correct in volatile periods
+
+#### Option C: ML-Based Meta-Model
+**Pros:**
+- Most sophisticated
+- Could learn complex patterns
+
+**Cons:**
+- Needs significant training data
+- Black box decisions
+- Hard to debug
+- Overkill for 4 agents
+
+### Decision
+
+**Chose: Full Meta-Learning System (Option B)**
+
+**Rationale:**
+1. Balance between simplicity and sophistication
+2. Bias detection prevents common learning pitfalls
+3. Regime detection adapts to market conditions
+4. Human oversight maintains control
+5. Transparency via Telegram and dashboard builds trust
+6. Modular design allows incremental improvements
+
+### Implementation Details
+
+**Three-Phase Architecture:**
+1. **Phase 1: Backend Infrastructure** (Complete)
+   - MetaLearningEngine with 4 bias detectors
+   - LearningEngine with weight optimization
+   - RegimeDetector for market classification
+   - 12 API endpoints at `/api/v1/learning/*`
+   - Celery task for daily optimization (00:00 EST)
+
+2. **Phase 2: Frontend Dashboard** (Complete)
+   - `/learning` route with agent weights table
+   - Bias alerts display with severity indicators
+   - Recent learning activity logs
+   - Manual weight override form (0.30 - 2.00)
+
+3. **Phase 3: Telegram Alerts** (Complete)
+   - `/learning` command - system status
+   - `/weights` command - current weights
+   - Weekly summary (Sunday 6PM EST)
+   - Bias alerts every 6 hours
+
+**Bias Detection Types:**
+| Bias Type | Description | Detection Method |
+|-----------|-------------|------------------|
+| OVERFITTING | Training ≫ validation performance | Confidence interval check |
+| RECENCY | Over-reliance on recent data | Weight to last 7 days |
+| THRASHING | Frequent weight reversals | Sign change frequency |
+| REGIME_BLINDNESS | Failure to adapt to market regime | Cross-regime correlation |
+
+**Market Regimes:**
+| Regime | Detection Trigger | Weight Adjustment |
+|--------|-------------------|-------------------|
+| NORMAL | VIX < 25, trends intact | Standard weights |
+| HIGH_VOLATILITY | VIX > 25 | Reduce momentum agents |
+| BEAR_MARKET | SMA deviation > -5% | Increase contrarian weight |
+| DIVERGENCE | Sector correlation < 0.3 | Diversify weights |
+
+**Weight Optimization Algorithm:**
+```python
+blended_score = (
+    win_rate_7d * 0.40 +  # Recent performance
+    win_rate_30d * 0.40 + # Medium-term
+    win_rate_90d * 0.20   # Long-term stability
+)
+proposed_weight = base_weight * (blended_score / baseline_score)
+# Bounded: 0.30 - 2.00, max daily change: 10%
+```
+
+**Celery Schedule:**
+| Task | Schedule | Description |
+|------|----------|-------------|
+| optimize_agent_weights | 00:00 EST daily | Full optimization cycle |
+| check_critical_biases | Every 6 hours | Bias detection and alerts |
+| send_learning_alerts | Every 6 hours | Telegram bias notifications |
+| send_weekly_summary | Sunday 6PM | Weekly performance digest |
+
+**Files Created:**
+- `backend/app/services/meta_learning_engine.py` (545 lines)
+- `backend/app/services/learning_engine.py` (575 lines)
+- `backend/app/services/regime_detector.py` (140 lines)
+- `backend/app/tasks/learning_tasks.py` (550 lines)
+- `backend/app/api/endpoints/learning.py` (400 lines)
+- `frontend/src/pages/Learning.tsx` (300 lines)
+- `backend/tests/unit/test_learning.py` (590 lines)
+
+### Consequences
+
+**Positive:**
+- Automated weight optimization reduces manual tuning
+- Bias detection prevents common learning pitfalls
+- Market regime adaptation improves all-weather performance
+- Telegram alerts provide transparency without requiring dashboard checks
+- Dashboard enables human oversight and intervention
+- 33 tests ensure reliability
+
+**Negative:**
+- Requires 30+ days of signal data for meaningful optimization
+- May need calibration tuning based on real results
+- Complex system to debug if issues arise
+
+**Mitigation:**
+- Manual override allows human intervention anytime
+- Extensive logging in learning_log table
+- Daily Telegram alerts keep user informed
+- Conservative weight bounds (0.30 - 2.00) prevent extreme changes
+
+**Technical Debt:**
+- May need regime detector calibration with more market data
+- Impact: Low (configurable thresholds)
+
+**Reversible:** Yes - can disable auto-learning via system_config (auto_learning_enabled: false)
+
+**Test Coverage:** 33 tests covering all components
 
 ---
 
