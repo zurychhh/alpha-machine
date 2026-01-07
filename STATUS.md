@@ -1,9 +1,9 @@
 # ALPHA MACHINE - PROJECT STATUS
 ## Live Development State
 
-**Last Updated:** 2026-01-07 00:45 CET
+**Last Updated:** 2026-01-07 15:00 CET
 **Updated By:** Claude Code
-**Session:** 13 - Self-Learning System (All 3 Phases Complete)
+**Session:** 14 - Reddit Integration (Phase 2-4 Complete)
 
 ---
 
@@ -27,7 +27,7 @@
   - MultiModalAgent (Google Gemini 2.0 Flash) ✅
   - PredictorAgent (rule-based, local) ✅
 - ✅ 20 signals generated with full 4-agent analysis
-- ✅ 470 tests passing (79% coverage)
+- ✅ 517 tests passing (79% coverage)
 - ✅ **Celery Beat Automation DEPLOYED** (Session 10)
   - Worker Service ID: `2840fcc8-1b25-4526-9ba4-73e14e01e8e6`
   - Schedule: 9AM + 12PM signals, 4:30PM analysis
@@ -64,6 +64,25 @@
     - `/weights` command - Current agent weights
     - Weekly summary (Sunday 6PM EST)
     - Bias alerts (every 6 hours)
+- ⏳ **Reddit Integration IN PROGRESS** (Session 14)
+  - ✅ **Phase 2: VADER Sentiment** - Replaced keyword analysis with NLP
+    - vaderSentiment package added to requirements
+    - `_analyze_reddit_post()` returns compound score (-1 to 1)
+    - `_analyze_headline()` upgraded for news
+    - Engagement boost for high-score Reddit posts
+  - ✅ **Phase 3: Signal Integration** - 20% weight for sentiment
+    - Added `_analyze_sentiment()` to PredictorAgent
+    - Weights: RSI 16%, MA 20%, Momentum 20%, Volume 8%, Trend 16%, Sentiment 20%
+    - Confidence based on mention count (5→0.2, 10→0.3, 25→0.5, 50→0.7)
+  - ✅ **Phase 4: Redis Caching** - 30 min TTL
+    - `_get_cached_sentiment()` / `_cache_sentiment()` methods
+    - Cache key: `sentiment:{ticker}`
+    - TTL: 1800 seconds (30 minutes)
+    - `aggregate_sentiment(use_cache=True)` parameter
+  - ❌ **Phase 1: Reddit API** - AWAITING USER ACTION
+    - User needs to create Reddit App at https://www.reddit.com/prefs/apps
+    - Provide REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET
+    - Then deploy to Railway via API
 
 ### 💼 Business Value Summary
 
